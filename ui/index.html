@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>闲牛</title>
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    // 前端错误上报到 Rust 侧日志（%TEMP%\workcalf_debug.txt）
+    window.addEventListener('error', (e) => {
+      try {
+        window.__TAURI__?.core.invoke('debug_log', {
+          msg: 'ERR ' + e.message + ' @ ' + e.filename + ':' + e.lineno,
+        });
+      } catch {}
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      try {
+        window.__TAURI__?.core.invoke('debug_log', { msg: 'REJ ' + e.reason });
+      } catch {}
+    });
+  </script>
+</head>
+<body>
+  <div id="stage">
+    <!-- data-tauri-drag-region：左键按住拖动窗口 -->
+    <canvas id="pet" data-tauri-drag-region></canvas>
+    <div id="ctxmenu" class="hidden">
+      <button id="mi-sound">音效：开</button>
+      <button id="mi-settings">设置面板</button>
+      <button id="mi-reset">重置位置</button>
+      <div class="sep"></div>
+      <button id="mi-quit" class="danger">退出程序</button>
+    </div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

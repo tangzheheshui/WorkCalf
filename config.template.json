@@ -1,0 +1,10 @@
+{
+  "idle_timeout_secs": 4,
+  "anim_speed": "normal",
+  "scale": 1.0,
+  "click_through": false,
+  "sound_enabled": true,
+  "pos_x": -1,
+  "pos_y": -1,
+  "debug_dump": false
+}

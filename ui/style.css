@@ -1,0 +1,58 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+#stage {
+  position: fixed;
+  inset: 0;
+}
+#pet {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* 右键菜单：简洁轻量 */
+#ctxmenu {
+  position: absolute;
+  min-width: 132px;
+  background: #fffdf9;
+  border: 1px solid #eadfce;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(80, 50, 20, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+#ctxmenu.hidden {
+  display: none;
+}
+#ctxmenu button {
+  all: unset;
+  font: 13px/1 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  color: #4a3b2e;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+#ctxmenu button:hover {
+  background: #f4e9db;
+}
+#ctxmenu button.danger:hover {
+  background: #f7ddd6;
+  color: #a04234;
+}
+#ctxmenu .sep {
+  height: 1px;
+  background: #eee0cd;
+  margin: 4px 6px;
+}

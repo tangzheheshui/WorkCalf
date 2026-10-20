@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>闲牛 · 设置</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.6 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      color: #4a3b2e;
+      background: #faf6f0;
+    }
+    .card {
+      max-width: 360px;
+      margin: 24px auto;
+      background: #fffdf9;
+      border: 1px solid #eee0cd;
+      border-radius: 12px;
+      padding: 20px 24px 14px;
+    }
+    h1 { font-size: 17px; margin: 0 0 16px; }
+    .row { margin-bottom: 16px; }
+    .row > span.lab { display: block; margin-bottom: 4px; color: #7a6a58; font-size: 13px; }
+    select, input[type="range"] { width: 100%; }
+    select {
+      padding: 6px 8px;
+      border: 1px solid #e3d5c2;
+      border-radius: 8px;
+      background: #fff;
+      color: #4a3b2e;
+      font-size: 13px;
+    }
+    .check { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; }
+    .check input { margin-top: 4px; }
+    .hint { font-size: 12px; color: #a0907c; margin-top: 2px; }
+    .warn {
+      background: #fdeeea;
+      border: 1px solid #f2c4ba;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .warn button {
+      all: unset;
+      color: #b3543f;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    footer {
+      border-top: 1px solid #f0e6d8;
+      margin-top: 6px;
+      padding-top: 10px;
+      font-size: 12px;
+      color: #a0907c;
+      text-align: center;
+    }
+    #scale-v { color: #b3543f; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>闲牛 · 设置</h1>
+    <div id="mac-warn" class="warn" style="display:none">
+      未检测到辅助功能权限，无法监听全局键鼠。<br />
+      请前往 系统设置 → 隐私与安全性 → 辅助功能 勾选本应用。
+      <button id="open-a11y">打开系统设置</button>
+    </div>
+
+    <div class="row">
+      <span class="lab">闲置等待时长（无输入多久开始敲木鱼）</span>
+      <select id="idle">
+        <option value="3">3 秒</option>
+        <option value="4">4 秒</option>
+        <option value="5">5 秒</option>
+        <option value="8">8 秒</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <span class="lab">动画速度</span>
+      <select id="speed">
+        <option value="slow">慢速</option>
+        <option value="normal">正常</option>
+        <option value="fast">快速</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <span class="lab">挂件缩放大小 <span id="scale-v">1.00</span> 倍</span>
+      <input type="range" id="scale" min="0.5" max="2" step="0.05" value="1" />
+    </div>
+
+    <label class="check">
+      <input type="checkbox" id="ct" />
+      <span>鼠标穿透<br /><span class="hint">开启后点击小牛区域将穿透到后方窗口，且无法拖拽小牛；可通过系统托盘或本面板关回。</span></span>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" id="snd" />
+      <span>音效（打字哒哒声 / 木鱼声）</span>
+    </label>
+
+    <footer>闲牛 v1.0 · 纯本地运行 · 无任何网络请求</footer>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>
