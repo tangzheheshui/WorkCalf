@@ -13,8 +13,10 @@ pub struct AppConfig {
     pub idle_timeout_secs: u32,
     /// 动画速度倍率 slow | normal | fast
     pub anim_speed: String,
-    /// 挂件缩放 0.5 ~ 2.0
+    /// 挂件缩放 0.3 ~ 2.0
     pub scale: f64,
+    /// 挂件不透明度 0.2 ~ 1.0
+    pub opacity: f64,
     /// 鼠标穿透开关
     pub click_through: bool,
     /// 音效总开关
@@ -33,7 +35,8 @@ impl Default for AppConfig {
         Self {
             idle_timeout_secs: 4,
             anim_speed: "normal".into(),
-            scale: 0.6,
+            scale: 0.65,
+            opacity: 1.0,
             click_through: false,
             sound_enabled: true,
             model_id: "classic".into(),

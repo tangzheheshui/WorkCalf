@@ -1,7 +1,8 @@
 {
   "idle_timeout_secs": 4,
   "anim_speed": "normal",
-  "scale": 0.6,
+  "scale": 0.65,
+  "opacity": 1.0,
   "click_through": false,
   "sound_enabled": true,
   "model_id": "classic",

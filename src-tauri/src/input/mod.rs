@@ -14,9 +14,10 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state_machine;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum InputEvent {
-    KeyPress,
+    /// 键名（rdev 的 Debug 名，如 "KeyA" / "Num1" / "Space"），前端映射到键盘位置
+    KeyPress(String),
     MouseMove(f64, f64),
     LeftClick,
 }
@@ -51,12 +52,13 @@ pub fn spawn(app: AppHandle) {
 
 fn forward_loop(app: AppHandle, rx: Receiver<InputEvent>) {
     let mut last_mouse_fwd = Instant::now() - Duration::from_secs(1);
+    let mut last_mouse_pos: Option<(f64, f64)> = None;
     for ev in rx {
         state_machine::touch_input();
         match ev {
-            InputEvent::KeyPress => {
+            InputEvent::KeyPress(key) => {
                 state_machine::force_busy();
-                let _ = app.emit_to("main", "pet://key", json!({}));
+                let _ = app.emit_to("main", "pet://key", json!({ "key": key }));
             }
             InputEvent::LeftClick => {
                 state_machine::force_busy();
@@ -68,11 +70,17 @@ fn forward_loop(app: AppHandle, rx: Receiver<InputEvent>) {
                     continue;
                 }
                 last_mouse_fwd = Instant::now();
+                // 两次上报之间的真实位移：前端按“相对鼠标垫的位移”累积，
+                // 而不是把屏幕绝对坐标缩放成垫子位置（后者光标一远离窗口就不动了）
+                let (dx, dy) = last_mouse_pos
+                    .map(|(lx, ly)| (x - lx, y - ly))
+                    .unwrap_or((0.0, 0.0));
+                last_mouse_pos = Some((x, y));
                 if let Some((rx, ry, inside)) = compute_rel(&app, x, y) {
                     let _ = app.emit_to(
                         "main",
                         "pet://mouse",
-                        json!({ "rx": rx, "ry": ry, "inside": inside }),
+                        json!({ "rx": rx, "ry": ry, "inside": inside, "dx": dx, "dy": dy }),
                     );
                 }
             }

@@ -86,6 +86,11 @@ pub fn save_position_if_moved(app: &AppHandle) {
 // ---------- IPC 命令 ----------
 
 #[tauri::command]
+pub fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 pub fn get_config(app: AppHandle) -> AppConfig {
     app.state::<AppState>().cfg.lock().unwrap().clone()
 }
@@ -107,7 +112,10 @@ pub fn set_config(app: AppHandle, patch: Value) -> Result<AppConfig, String> {
         }
     }
     if let Some(v) = patch.get("scale").and_then(Value::as_f64) {
-        cfg.scale = v.clamp(0.5, 2.0);
+        cfg.scale = v.clamp(0.3, 2.0);
+    }
+    if let Some(v) = patch.get("opacity").and_then(Value::as_f64) {
+        cfg.opacity = v.clamp(0.2, 1.0);
     }
     if let Some(v) = patch.get("click_through").and_then(Value::as_bool) {
         cfg.click_through = v;
@@ -173,9 +181,11 @@ pub fn open_settings_internal(app: &AppHandle) -> tauri::Result<()> {
         tauri::WebviewUrl::App("settings.html".into()),
     )
     .title("勤劳的牛牛 · 设置")
-    .inner_size(440.0, 620.0)
-    .min_inner_size(440.0, 620.0)
+    .inner_size(620.0, 460.0)
+    .min_inner_size(620.0, 460.0)
     .resizable(false)
+    // 设置面板不单独占任务栏按钮，避免任务栏多出一个图标
+    .skip_taskbar(true)
     .center()
     // WebView2 要求同一数据目录下所有窗口的浏览器参数一致，否则创建失败
     .additional_browser_args("--autoplay-policy=no-user-gesture-required")
@@ -276,11 +286,19 @@ pub fn start_debug_simulator(app: &AppHandle) {
             let _ = app.emit_to(
                 "main",
                 "pet://mouse",
-                json!({ "rx": 0.65, "ry": -0.3, "inside": false }),
+                json!({ "rx": 0.65, "ry": -0.3, "inside": false, "dx": 300.0, "dy": -160.0 }),
             );
-            for _ in 0..55 {
+            let keys = [
+                "KeyA", "KeyS", "KeyD", "KeyF", "KeyJ", "KeyK", "KeyL", "Space", "Num1",
+                "Delete", "Backspace", "Return",
+            ];
+            for i in 0..55 {
                 crate::state_machine::force_busy();
-                let _ = app.emit_to("main", "pet://key", json!({}));
+                let _ = app.emit_to(
+                    "main",
+                    "pet://key",
+                    json!({ "key": keys[i % keys.len()] }),
+                );
                 std::thread::sleep(std::time::Duration::from_millis(70));
             }
             std::thread::sleep(std::time::Duration::from_secs(24));

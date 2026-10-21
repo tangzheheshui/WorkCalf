@@ -22,7 +22,7 @@ impl WindowsInputListener {
 
 fn map_event(e: Event) -> Option<InputEvent> {
     match e.event_type {
-        EventType::KeyPress(_) => Some(InputEvent::KeyPress),
+        EventType::KeyPress(key) => Some(InputEvent::KeyPress(format!("{key:?}"))),
         EventType::MouseMove { x, y } => Some(InputEvent::MouseMove(x, y)),
         EventType::ButtonPress(Button::Left) => Some(InputEvent::LeftClick),
         _ => None,

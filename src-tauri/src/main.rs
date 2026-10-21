@@ -20,7 +20,64 @@ pub struct AppState {
     pub force_ignore_cursor: Mutex<bool>,
 }
 
+/// 启动守卫：在 Tauri 创建任何窗口/托盘图标之前，先抢一个进程级命名互斥体。
+/// 即使同时双击、或旧副本（如 workcalf(1).exe）还在运行，也只有一个进程能继续，
+/// 其余的立刻静默退出，任务栏/托盘不会闪出多个图标。
+///
+/// 重复启动时不再只是退出，而是通过命名事件通知已运行的实例打开设置面板，
+/// 这样“双击图标”在程序已经运行时也会直接跳到设置页。
+#[cfg(windows)]
+struct StartupGuard {
+    /// 自动复位事件：重复启动的进程 SetEvent，主实例的等待线程被唤醒
+    open_settings_event: windows_sys::Win32::Foundation::HANDLE,
+}
+
+
+#[cfg(windows)]
+fn acquire_startup_guard() -> Option<StartupGuard> {
+    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS};
+    use windows_sys::Win32::System::Threading::{
+        CreateEventW, CreateMutexW, OpenEventW, SetEvent, EVENT_MODIFY_STATE,
+    };
+
+    fn wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+    let mutex_name = wide("Local\\com.workcalf.app.startup-guard");
+    let event_name = wide("Local\\com.workcalf.app.open-settings");
+
+    unsafe {
+        let mutex = CreateMutexW(std::ptr::null(), 1, mutex_name.as_ptr());
+        if mutex.is_null() {
+            // 互斥体都建不出来（极少见）：不拦，交给单实例插件兜底
+            let ev = CreateEventW(std::ptr::null(), 0, 0, event_name.as_ptr());
+            return Some(StartupGuard { open_settings_event: ev });
+        }
+        if GetLastError() == ERROR_ALREADY_EXISTS {
+            // 已有实例在跑：请它打开设置面板，然后静默退出
+            let ev = OpenEventW(EVENT_MODIFY_STATE, 0, event_name.as_ptr());
+            if !ev.is_null() {
+                SetEvent(ev);
+                CloseHandle(ev);
+            }
+            CloseHandle(mutex);
+            return None;
+        }
+        // 主实例：互斥体句柄故意不关，持有到进程结束，由系统释放。
+        // 事件用自动复位，每次重复启动只唤醒一次。
+        let ev = CreateEventW(std::ptr::null(), 0, 0, event_name.as_ptr());
+        Some(StartupGuard { open_settings_event: ev })
+    }
+}
+
 fn main() {
+    // 重复启动：通知主实例打开设置后退出；主实例拿到事件句柄继续启动
+    #[cfg(windows)]
+    let open_settings_event = match acquire_startup_guard() {
+        Some(g) => g.open_settings_event as usize,
+        None => return,
+    };
+
     let (cfg, cfg_path) = config::AppConfig::load_or_create();
     let click_through = cfg.click_through;
 
@@ -37,6 +94,7 @@ fn main() {
             force_ignore_cursor: Mutex::new(click_through),
         })
         .invoke_handler(tauri::generate_handler![
+            commands::app_version,
             commands::get_config,
             commands::set_config,
             commands::toggle_sound,
@@ -48,16 +106,44 @@ fn main() {
             commands::debug_dump,
             commands::debug_log,
         ])
-        .setup(|app| {
+        .setup(move |app| {
+            // 等待“重复启动”信号：双击 exe / 快捷方式 → 打开设置面板
+            #[cfg(windows)]
+            if open_settings_event != 0 {
+                use windows_sys::Win32::Foundation::WAIT_OBJECT_0;
+                use windows_sys::Win32::System::Threading::WaitForSingleObject;
+
+                let app_handle = app.handle().clone();
+                // setup 闭包要求 Send，因此句柄以 usize 形式捕获
+                let event_addr = open_settings_event;
+                std::thread::spawn(move || loop {
+                    let event = event_addr as windows_sys::Win32::Foundation::HANDLE;
+                    let r = unsafe { WaitForSingleObject(event, u32::MAX) };
+                    if r != WAIT_OBJECT_0 {
+                        break;
+                    }
+                    let h = app_handle.clone();
+                    let _ = app_handle.run_on_main_thread(move || {
+                        let _ = commands::open_settings_internal(&h);
+                        if let Some(w) = h.get_webview_window("main") {
+                            let _ = w.set_focus();
+                        }
+                    });
+                });
+            }
+
             let handle = app.handle().clone();
             state_machine::init(handle.clone());
             input::spawn(handle.clone());
             commands::apply_window_geometry(&handle);
             commands::apply_cursor_mode(&handle);
             tray::create(handle.clone())?;
+            // 模拟输入脉冲只在显式设置 WORKCALF_SIM_INPUT=1 时启用；
+            // 不能跟着 debug_dump 一起开，否则正常使用时会自己"劈里啪啦"打字。
             {
                 let st = handle.state::<AppState>();
-                if st.cfg.lock().unwrap().debug_dump {
+                let sim = std::env::var("WORKCALF_SIM_INPUT").ok().as_deref() == Some("1");
+                if st.cfg.lock().unwrap().debug_dump && sim {
                     commands::start_debug_simulator(&handle);
                 }
             }

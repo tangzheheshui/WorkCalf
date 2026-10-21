@@ -2,7 +2,7 @@
 //! 鼠标穿透开启时右键菜单不可达，必须保留托盘才能关回穿透。
 
 use tauri::menu::{IsMenuItem, MenuBuilder, MenuItemBuilder};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Wry};
 
 use crate::commands;
@@ -18,9 +18,25 @@ pub fn create(app: AppHandle) -> tauri::Result<()> {
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("勤劳的牛牛")
         .menu(&menu)
-        // 左键/右键都弹菜单，兼容不同用户习惯
-        .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| handle_menu(app, event.id().as_ref()));
+        // 左键（单击或双击）直接打开设置；右键仍然弹菜单
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| handle_menu(app, event.id().as_ref()))
+        .on_tray_icon_event(|tray, event| {
+            let open = matches!(
+                event,
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                } | TrayIconEvent::DoubleClick {
+                    button: MouseButton::Left,
+                    ..
+                }
+            );
+            if open {
+                let _ = commands::open_settings_internal(tray.app_handle());
+            }
+        });
 
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
