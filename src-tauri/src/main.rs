@@ -59,6 +59,12 @@ fn main() {
             commands::apply_window_geometry(&handle);
             commands::apply_cursor_mode(&handle);
             tray::create(handle.clone())?;
+            {
+                let st = handle.state::<AppState>();
+                if st.cfg.lock().unwrap().debug_dump {
+                    commands::start_debug_simulator(&handle);
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -240,6 +240,30 @@ pub fn debug_log(msg: String) {
     }
 }
 
+/// 调试（仅 config.debug_dump=true 时启用）：模拟输入脉冲。
+/// 走与真实输入完全相同的事件管线（force_busy + pet://key），
+/// 用于无输入环境验证忙碌态动画与打断逻辑。
+pub fn start_debug_simulator(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        loop {
+            // 一轮 55 次"按键"@70ms ≈ 3.9s（强度可到流汗阈值之上）
+            let _ = app.emit_to(
+                "main",
+                "pet://mouse",
+                json!({ "rx": 0.65, "ry": -0.3, "inside": false }),
+            );
+            for _ in 0..55 {
+                crate::state_machine::force_busy();
+                let _ = app.emit_to("main", "pet://key", json!({}));
+                std::thread::sleep(std::time::Duration::from_millis(70));
+            }
+            std::thread::sleep(std::time::Duration::from_secs(24));
+        }
+    });
+}
+
 fn chrono_free_ts() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
