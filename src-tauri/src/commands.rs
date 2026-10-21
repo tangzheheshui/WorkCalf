@@ -15,6 +15,7 @@ fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
 
 // ---------- 窗口几何 ----------
 
+/// 启动时：应用尺寸并按配置定位（保存的位置，或默认右下角）
 pub fn apply_window_geometry(app: &AppHandle) {
     let st = app.state::<AppState>();
     let cfg = st.cfg.lock().unwrap().clone();
@@ -26,6 +27,17 @@ pub fn apply_window_geometry(app: &AppHandle) {
         } else {
             place_bottom_right(&w, cfg.scale);
         }
+    }
+}
+
+/// 运行中改缩放：只改尺寸，保持窗口当前位置不动。
+/// 不能复用 apply_window_geometry——那里会用配置里的旧坐标覆盖当前拖拽位置。
+pub fn apply_window_size(app: &AppHandle) {
+    let st = app.state::<AppState>();
+    let scale = st.cfg.lock().unwrap().scale;
+    if let Some(w) = main_window(app) {
+        let s = BASE_SIZE * scale;
+        let _ = w.set_size(LogicalSize::new(s, s));
     }
 }
 
@@ -41,13 +53,12 @@ fn place_bottom_right(w: &WebviewWindow, scale: f64) {
     let _ = w.set_position(LogicalPosition::new(x, y));
 }
 
-/// 鼠标穿透 = 用户开关 || 光标悬停在透明像素上（前端命中测试）
+/// 鼠标穿透 = 用户开关。未开启时整个窗口矩形都可交互（拖拽/右键）。
 pub fn apply_cursor_mode(app: &AppHandle) {
     let st = app.state::<AppState>();
     let user = *st.force_ignore_cursor.lock().unwrap();
-    let hot = *st.hot_ignore.lock().unwrap();
     if let Some(w) = main_window(app) {
-        let _ = w.set_ignore_cursor_events(user || hot);
+        let _ = w.set_ignore_cursor_events(user);
     }
 }
 
@@ -119,7 +130,7 @@ pub fn set_config(app: AppHandle, patch: Value) -> Result<AppConfig, String> {
     *st.force_ignore_cursor.lock().unwrap() = cfg.click_through;
     drop(st);
 
-    apply_window_geometry(&app);
+    apply_window_size(&app);
     apply_cursor_mode(&app);
     let payload = serde_json::to_value(&cfg).unwrap();
     let _ = app.emit_to("main", "pet://config", payload.clone());
@@ -161,7 +172,7 @@ pub fn open_settings_internal(app: &AppHandle) -> tauri::Result<()> {
         "settings",
         tauri::WebviewUrl::App("settings.html".into()),
     )
-    .title("闲牛 · 设置")
+    .title("勤劳的牛牛 · 设置")
     .inner_size(440.0, 620.0)
     .min_inner_size(440.0, 620.0)
     .resizable(false)
@@ -188,21 +199,6 @@ pub fn reset_position_internal(app: &AppHandle) {
         place_bottom_right(&w, scale);
         save_position_if_moved(app);
     }
-}
-
-/// 前端命中测试结果：光标位于非透明像素上（仅用户未开穿透时生效）
-#[tauri::command]
-pub fn set_shaped_ignore(app: AppHandle, hot: bool) {
-    let st = app.state::<AppState>();
-    {
-        let mut h = st.hot_ignore.lock().unwrap();
-        if *h == hot {
-            return;
-        }
-        *h = hot;
-    }
-    drop(st);
-    apply_cursor_mode(&app);
 }
 
 #[tauri::command]

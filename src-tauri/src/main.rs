@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-//! 闲牛 WorkCalf —— 佛系打工小牛桌面桌宠
+//! 勤劳的牛牛 WorkCalf —— 佛系打工小牛桌面桌宠
 //! 纯单机：无网络请求、无登录、无更新检测。
 
 mod commands;
@@ -18,8 +18,6 @@ pub struct AppState {
     pub cfg_path: std::path::PathBuf,
     /// 用户设置的鼠标穿透（设置面板开关）
     pub force_ignore_cursor: Mutex<bool>,
-    /// 前端逐像素命中测试得到的动态穿透（光标在透明区域上）
-    pub hot_ignore: Mutex<bool>,
 }
 
 fn main() {
@@ -37,7 +35,6 @@ fn main() {
             cfg: Mutex::new(cfg),
             cfg_path,
             force_ignore_cursor: Mutex::new(click_through),
-            hot_ignore: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
@@ -45,7 +42,6 @@ fn main() {
             commands::toggle_sound,
             commands::open_settings,
             commands::reset_position,
-            commands::set_shaped_ignore,
             commands::quit_app,
             commands::mac_permission_status,
             commands::open_mac_accessibility,
@@ -76,5 +72,5 @@ fn main() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("闲牛启动失败");
+        .expect("勤劳的牛牛启动失败");
 }

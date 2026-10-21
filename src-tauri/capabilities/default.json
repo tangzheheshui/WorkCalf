@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "闲牛主窗口与设置窗口的默认能力",
+  "description": "勤劳的牛牛主窗口与设置窗口的默认能力",
   "windows": ["main", "settings"],
   "permissions": [
     "core:default",

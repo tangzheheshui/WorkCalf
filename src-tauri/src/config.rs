@@ -33,7 +33,7 @@ impl Default for AppConfig {
         Self {
             idle_timeout_secs: 4,
             anim_speed: "normal".into(),
-            scale: 1.0,
+            scale: 0.6,
             click_through: false,
             sound_enabled: true,
             model_id: "classic".into(),

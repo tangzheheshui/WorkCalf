@@ -45,6 +45,7 @@ els.scale.oninput = () => {
 };
 els.ct.onchange = () => invoke('set_config', { patch: { click_through: els.ct.checked } });
 els.snd.onchange = () => invoke('set_config', { patch: { sound_enabled: els.snd.checked } });
+$('reset-pos').onclick = () => invoke('reset_position');
 
 // 托盘/右键菜单改了音效时同步回显
 await listen('pet://config', (e) => fill(e.payload));

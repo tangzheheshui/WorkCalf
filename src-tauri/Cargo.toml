@@ -1,7 +1,7 @@
 [package]
 name = "workcalf"
 version = "1.0.0"
-description = "闲牛 - 佛系打工小牛桌面桌宠"
+description = "勤劳的牛牛 - 佛系打工小牛桌面桌宠"
 edition = "2021"
 
 [build-dependencies]

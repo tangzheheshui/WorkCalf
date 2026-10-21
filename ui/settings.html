@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>闲牛 · 设置</title>
+  <title>勤劳的牛牛 · 设置</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -57,11 +57,21 @@
       text-align: center;
     }
     #scale-v { color: #b3543f; font-weight: 600; }
+    .btn {
+      padding: 7px 14px;
+      border: 1px solid #e3d5c2;
+      border-radius: 8px;
+      background: #fff;
+      color: #4a3b2e;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn:hover { background: #f4e9db; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>闲牛 · 设置</h1>
+    <h1>勤劳的牛牛 · 设置</h1>
     <div id="mac-warn" class="warn" style="display:none">
       未检测到辅助功能权限，无法监听全局键鼠。<br />
       请前往 系统设置 → 隐私与安全性 → 辅助功能 勾选本应用。
@@ -93,13 +103,18 @@
     </div>
 
     <div class="row">
-      <span class="lab">挂件缩放大小 <span id="scale-v">1.00</span> 倍</span>
-      <input type="range" id="scale" min="0.5" max="2" step="0.05" value="1" />
+      <span class="lab">挂件缩放大小 <span id="scale-v">0.60</span> 倍</span>
+      <input type="range" id="scale" min="0.5" max="2" step="0.05" value="0.6" />
+    </div>
+
+    <div class="row">
+      <span class="lab">小牛位置</span>
+      <button id="reset-pos" class="btn">重置到屏幕右下角</button>
     </div>
 
     <label class="check">
       <input type="checkbox" id="ct" />
-      <span>鼠标穿透<br /><span class="hint">开启后点击小牛区域将穿透到后方窗口，且无法拖拽小牛；可通过系统托盘或本面板关回。</span></span>
+      <span>鼠标穿透<br /><span class="hint">开启后整个小牛窗口都会穿透到后方窗口，且无法拖拽小牛；可通过系统托盘或本面板关回。</span></span>
     </label>
 
     <label class="check">
@@ -107,7 +122,7 @@
       <span>音效（打字哒哒声 / 木鱼声）</span>
     </label>
 
-    <footer>闲牛 v1.0 · 纯本地运行 · 无任何网络请求</footer>
+    <footer>勤劳的牛牛 v1.0 · 纯本地运行 · 无任何网络请求</footer>
   </div>
   <script type="module" src="settings.js"></script>
 </body>

@@ -1,4 +1,4 @@
-// 闲牛主逻辑：事件订阅 → 动画参数 → 渲染器 / 音效
+// 勤劳的牛牛主逻辑：事件订阅 → 动画参数 → 渲染器 / 音效
 // 渲染器接口：render(dt, params) + hitTest(x, y)，占位实现与将来 Live2D 实现同构。
 
 const { invoke } = window.__TAURI__.core;
@@ -6,7 +6,7 @@ const { listen } = window.__TAURI__.event;
 
 import { PlaceholderRenderer, applyStyle } from './placeholder.js';
 import { SoundKit } from './sounds.js';
-import { getModel, nextModelId } from './models.js';
+import { getModel } from './models.js';
 
 const SPEEDS = { slow: 0.8, normal: 1, fast: 1.25 };
 
@@ -26,45 +26,21 @@ let typing = [];        // 最近按键时间戳 → 敲击强度
 let intensity = 0;      // 平滑后的敲击强度 0..1
 let head = { x: 0, y: 0, tx: 0, ty: 0 }; // 头部朝向（跟随鼠标）
 let clickAt = -1e9;     // 左键点击时刻（点蹄动画）
-let hot = false;        // 当前逐像素命中结果
 
 await listen('pet://state', (e) => { state = e.payload.state; });
 await listen('pet://key', () => { typing.push(performance.now()); sound.typing(); });
 await listen('pet://click', () => { clickAt = performance.now(); });
 await listen('pet://mouse', (e) => {
-  const { rx, ry, inside } = e.payload;
+  const { rx, ry } = e.payload;
   head.tx = rx;
   head.ty = ry;
-  hitTest(inside);
 });
 await listen('pet://config', (e) => {
   cfg = e.payload;
   applyStyle(getModel(cfg.model_id).style);
-  syncMenu();
 });
-await listen('pet://listener-error', (e) => console.warn('[闲牛]', e.payload.message));
+await listen('pet://listener-error', (e) => console.warn('[勤劳的牛牛]', e.payload.message));
 
-/** 逐像素命中测试：光标在非透明像素上才允许鼠标落在小牛窗口 */
-function hitTest(inside) {
-  if (cfg.click_through) return; // 用户开启穿透：后端已固定 ignore
-  let want = false;
-  if (inside) {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const px = (head.tx * 0.5 + 0.5) * w;
-    const py = (head.ty * 0.5 + 0.5) * h;
-    want = renderer.hitTest(px, py);
-  }
-  if (want !== hot) {
-    hot = want;
-    invoke('set_shaped_ignore', { hot });
-  }
-}
-
-function syncMenu() {
-  document.getElementById('mi-sound').textContent = `音效：${cfg.sound_enabled ? '开' : '关'}`;
-}
-syncMenu();
 
 // 调试：定期导出渲染帧 + 状态机快照（config.json 中 debug_dump=true 时启用）
 if (cfg.debug_dump) {
@@ -72,7 +48,7 @@ if (cfg.debug_dump) {
     try {
       await invoke('debug_dump', { dataUrl: canvas.toDataURL('image/png') });
     } catch (e) {
-      console.warn('[闲牛] dump 失败', e);
+      console.warn('[勤劳的牛牛] dump 失败', e);
     }
   }, 3000);
 }
@@ -87,21 +63,9 @@ stage.addEventListener('contextmenu', (e) => {
 document.addEventListener('mousedown', (e) => {
   if (!menu.contains(e.target)) menu.classList.add('hidden');
 });
-document.getElementById('mi-sound').onclick = async () => {
-  cfg = await invoke('toggle_sound');
-  syncMenu();
-};
-document.getElementById('mi-model').onclick = async () => {
-  cfg = await invoke('set_config', { patch: { model_id: nextModelId(cfg.model_id) } });
-  syncMenu();
-};
 document.getElementById('mi-settings').onclick = () => {
   menu.classList.add('hidden');
   invoke('open_settings');
-};
-document.getElementById('mi-reset').onclick = () => {
-  menu.classList.add('hidden');
-  invoke('reset_position');
 };
 document.getElementById('mi-quit').onclick = () => invoke('quit_app');
 
