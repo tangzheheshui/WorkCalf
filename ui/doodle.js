@@ -14,7 +14,8 @@ function muyuLift(p) {
   return 0;
 }
 
-/** 偷瞄：约每 6.5 秒睁眼往旁边瞟一次，持续 1.3 秒 */
+/** 偷瞄：约每 6.5 秒睁眼往旁边瞟一次，持续 1.3 秒
+ *  睁眼要快（约 0.1 秒“唰”地睁开），停一下，再慢慢闭上 */
 function muyuGlance(t) {
   const period = 6.5;
   const ph = (t % period) / period;
@@ -22,7 +23,9 @@ function muyuGlance(t) {
   const end = 0.70;
   if (ph < start || ph > end) return 0;
   const k = (ph - start) / (end - start);
-  return Math.min(1, Math.sin(Math.PI * k) * 1.7);
+  if (k < 0.08) return k / 0.08;
+  if (k > 0.78) return (1 - k) / 0.22;
+  return 1;
 }
 
 /** 每次偷瞄左右轮换，让它看起来是在瞄人而不是发呆 */
@@ -36,7 +39,7 @@ const DEFAULT_STYLE = {
   body: '#ffffff',
   desk: '#fbfaf6',
   pad: '#c9c8c3',
-  mouse: '#e5e3dc',
+  mouse: '#8f8b82',
   kbBody: '#8e8c85',
   kbSide: '#6d6b64',
   kbFace: '#d9d7d0',
@@ -272,24 +275,43 @@ function cowEar(ctx, x, y, rx, ry, rot, side, seed, lw) {
   ctx.restore();
 }
 
-function mitten(ctx, x, y, r, rot, lw) {
+function mitten(ctx, x, y, r, rot, lw, resting = false) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rot);
-  blobPath(ctx, 0, 0, r * 1.15, r * 0.95, 0, 4.7);
-  fillInk(ctx, C.body, lw);
-  // 拇指
-  blobPath(ctx, -r * 0.92, r * 0.34, r * 0.48, r * 0.4, 0.35, 7.3);
-  fillInk(ctx, C.body, lw);
-  // 指缝
-  ctx.strokeStyle = C.ink;
-  ctx.lineWidth = lw * 0.55;
-  ctx.lineCap = 'round';
-  for (let i = -1; i <= 1; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * r * 0.34, r * 0.12);
-    ctx.quadraticCurveTo(i * r * 0.3, r * 0.55, i * r * 0.26, r * 0.72);
-    ctx.stroke();
+  if (resting) {
+    // 搭在鼠标上的手：摊平、略宽，手指只在前缘露一点，不是攥拳
+    blobPath(ctx, 0, 0, r * 1.24, r * 0.82, 0, 4.7);
+    fillInk(ctx, C.body, lw);
+    // 拇指在近侧，虚搭着鼠标
+    blobPath(ctx, r * 0.92, r * 0.26, r * 0.40, r * 0.34, -0.3, 7.3);
+    fillInk(ctx, C.body, lw);
+    // 前缘两道浅指缝
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = lw * 0.5;
+    ctx.lineCap = 'round';
+    for (const i of [-0.45, 0.15]) {
+      ctx.beginPath();
+      ctx.moveTo(i * r * 1.28, r * 0.28);
+      ctx.quadraticCurveTo(i * r * 1.12, r * 0.56, i * r * 0.92, r * 0.68);
+      ctx.stroke();
+    }
+  } else {
+    blobPath(ctx, 0, 0, r * 1.15, r * 0.95, 0, 4.7);
+    fillInk(ctx, C.body, lw);
+    // 拇指
+    blobPath(ctx, -r * 0.92, r * 0.34, r * 0.48, r * 0.4, 0.35, 7.3);
+    fillInk(ctx, C.body, lw);
+    // 指缝
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = lw * 0.55;
+    ctx.lineCap = 'round';
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * r * 0.34, r * 0.12);
+      ctx.quadraticCurveTo(i * r * 0.3, r * 0.55, i * r * 0.26, r * 0.72);
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -524,15 +546,21 @@ export class DoodleRenderer {
       const my = this.mouseOffset.y;
       const cx = w * MOUSE_LOCAL.x + mx;
       const cy = h * MOUSE_LOCAL.y + my;
-      blobPath(ctx, cx, cy, w * 0.054, h * 0.044, -0.12, 9.2);
-      fillInk(ctx, C.mouse, 2.2 * u);
+      // 鼠标画大、画深一点，手掌只压住后半部，前半部（按键）露出来
+      blobPath(ctx, cx, cy, w * 0.066, h * 0.054, -0.12, 9.2);
+      fillInk(ctx, C.mouse, 2.8 * u);
       // 鼠标线：从鼠标尾部拖到垫子上，手挡住鼠标时也能认出这是鼠标
       ctx.strokeStyle = C.ink;
       ctx.lineWidth = 1.6 * u;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(cx, cy - h * 0.044);
-      ctx.quadraticCurveTo(cx - w * 0.005, cy - h * 0.07, cx - w * 0.035, cy - h * 0.088);
+      ctx.moveTo(cx, cy - h * 0.054);
+      ctx.quadraticCurveTo(cx - w * 0.005, cy - h * 0.077, cx - w * 0.036, cy - h * 0.092);
+      ctx.stroke();
+      // 按键分缝：露在掌心外面的那一截
+      ctx.beginPath();
+      ctx.moveTo(cx + w * 0.002, cy + h * 0.024);
+      ctx.lineTo(cx + w * 0.005, cy + h * 0.052);
       ctx.stroke();
       // 滚轮
       ctx.beginPath();
@@ -718,9 +746,11 @@ export class DoodleRenderer {
 
   // ---------- 手臂 / 手 ----------
   armPose(w, h, u, t, p, muyu, daze) {
-    const clickLift =
+    // 鼠标点击：按在鼠标上的那只手轻轻往下按一下；
+    // 另一只（键盘上的）手不跟着动，否则没敲键盘手却在动会很怪
+    const clickPress =
       p.clickAge >= 0 && p.clickAge < 0.28
-        ? Math.sin((p.clickAge / 0.28) * Math.PI) * 7 * u
+        ? Math.sin((p.clickAge / 0.28) * Math.PI) * 4 * u
         : 0;
 
     // 敲木鱼：每 1.1s 一下（慢速时按动画速度放慢）：
@@ -740,19 +770,20 @@ export class DoodleRenderer {
     return {
       right: {
         x: this.hand ? this.hand.x : w * 0.635,
-        y: (this.hand ? this.hand.y : h * 0.775) + dip - clickLift,
+        y: (this.hand ? this.hand.y : h * 0.775) + dip,
         rot: -0.35,
       },
       // 敲木鱼时手抬到木鱼右上方，胳膊短、不横穿过木鱼
       left: muyu
         ? { x: w * 0.275, y: h * 0.705 - lift, rot: 0.18 }
         : {
-            x: mouseX,
-            y: mouseY + h * 0.042,
-            rot: 0.18,
+            // 爪子搭在鼠标后半部，前半部（按键）露在手掌下面
+            x: mouseX + w * 0.008,
+            y: mouseY - h * 0.030 + clickPress,
+            rot: 0.50,
           },
       // 握锤的手画小一点，避免把木鱼和锤头遮住
-      handR: muyu ? w * 0.038 : w * 0.046,
+      handR: muyu ? w * 0.038 : w * 0.042,
       muyu,
       lift,
       beat,
@@ -814,7 +845,8 @@ export class DoodleRenderer {
       this.drawMallet(ctx, pose.left.x, pose.left.y, angle, len, w, h, u);
     }
 
-    mitten(ctx, pose.left.x, pose.left.y, pose.handR, pose.left.rot, lw);
+    // 鼠标手是摊开搭着的，键盘手仍然是握拳敲键
+    mitten(ctx, pose.left.x, pose.left.y, pose.handR, pose.left.rot, lw, !pose.muyu);
     mitten(ctx, pose.right.x, pose.right.y, pose.handR, pose.right.rot, lw);
   }
 
@@ -921,16 +953,17 @@ export class DoodleRenderer {
     const glanceSide = muyu ? muyuGlanceSide(t) : 0;
 
     if (muyu && glance > 0.02) {
-      const ryEye = h * (0.008 + 0.014 * glance);
-      const gx = glanceSide * w * 0.016 * glance;
-      const gy = -h * 0.002 * glance;
+      // 眯眼偷瞄：眼睛拉长、压扁、上挑成一条缝（不能圆），眼珠顶到眼角
+      const ryEye = h * (0.006 + 0.009 * glance);
+      const gx = glanceSide * w * 0.031 * glance;
+      const gy = -h * 0.0015 * glance;
       for (const sx of [-1, 1]) {
-        blobPath(ctx, sx * eyeX, eyeY, w * 0.034, ryEye, sx * 0.12, sx < 0 ? 3.4 : 5.1);
+        blobPath(ctx, sx * eyeX, eyeY, w * 0.048, ryEye, sx * 0.22, sx < 0 ? 3.4 : 5.1);
         ctx.fillStyle = C.ink;
         ctx.fill();
         // 眼珠偏向一侧：偷瞄
         ctx.beginPath();
-        ctx.arc(sx * eyeX + gx, eyeY + gy, w * 0.0095, 0, TAU);
+        ctx.arc(sx * eyeX + gx, eyeY + gy, w * 0.010, 0, TAU);
         ctx.fillStyle = C.body;
         ctx.fill();
       }
@@ -978,36 +1011,41 @@ export class DoodleRenderer {
       }
     }
 
-    // 眉毛：平时两道一起往中间压成“八”字，配一道眉心竖纹——嚣张脸；
-    // 偷瞄时眉毛抬平、眉心松开，瞄向那一侧的外眉梢再挑高一点
+    // 眉毛：
+    // 打字时保持原来的“八”字怒眉 + 眉心竖纹；
+    // 趴着敲木鱼时眉毛放平放松；偷瞄时挑眉（瞄向哪边，哪边挑得更高）
     {
       const browY = eyeY - h * 0.050;
-      const lift = h * 0.011 * glance;
       ctx.strokeStyle = C.ink;
       ctx.lineWidth = 4.0 * u;
       ctx.lineCap = 'round';
       for (const sx of [-1, 1]) {
-        // 瞄向那一侧的眉毛整体再抬高一点：一边挑眉、一边皱眉
-        const browLift = lift + (sx === glanceSide ? h * 0.008 * glance : 0);
+        let oy;
+        let cy;
+        let iy;
+        if (!muyu) {
+          oy = browY - h * 0.008;
+          cy = browY + h * 0.002;
+          iy = browY + h * 0.016;
+        } else {
+          // 偷瞄时一边挑眉挑得很高、一边微微压下：看起来更像在打小算盘
+          const side = sx === glanceSide;
+          oy = lerp(browY + h * 0.003, browY + (side ? -h * 0.028 : h * 0.006), glance);
+          cy = lerp(browY + h * 0.002, browY + (side ? -h * 0.033 : h * 0.007), glance);
+          iy = lerp(browY + h * 0.001, browY + (side ? -h * 0.020 : h * 0.010), glance);
+        }
         ctx.beginPath();
-        ctx.moveTo(sx * w * 0.123, browY - h * 0.008 - browLift);
-        ctx.quadraticCurveTo(
-          sx * w * 0.075,
-          browY + h * 0.002 - browLift * 0.6,
-          sx * w * 0.030,
-          browY + h * 0.016 * (1 - glance) - browLift,
-        );
+        ctx.moveTo(sx * w * 0.123, oy);
+        ctx.quadraticCurveTo(sx * w * 0.075, cy, sx * w * 0.030, iy);
         ctx.stroke();
       }
-      // 眉心的竖纹在偷瞄时松开
-      if (glance < 0.98) {
-        ctx.globalAlpha = 1 - glance;
+      // 眉心的竖纹只在打字/工作时保留
+      if (!muyu) {
         ctx.lineWidth = 2.4 * u;
         ctx.beginPath();
         ctx.moveTo(0, browY + h * 0.006);
         ctx.quadraticCurveTo(w * 0.002, browY + h * 0.014, 0, browY + h * 0.024);
         ctx.stroke();
-        ctx.globalAlpha = 1;
       }
     }
 
@@ -1022,14 +1060,20 @@ export class DoodleRenderer {
       ctx.fill();
     }
 
-    // 嘴：抿成一条线，下巴微微抬着——嚣张
+    // 嘴：抿成一条线，下巴微微抬着——嚣张；偷瞄时嘴角向瞄的那边轻轻一挑
     ctx.strokeStyle = C.ink;
     ctx.lineWidth = 2.8 * u;
     ctx.lineCap = 'round';
     const my = h * 0.125;
     ctx.beginPath();
-    ctx.moveTo(-w * 0.031, my + h * 0.002);
-    ctx.lineTo(w * 0.031, my - h * 0.002);
+    if (muyu && glance > 0.02) {
+      const smirk = h * 0.008 * glance;
+      ctx.moveTo(-w * 0.031, my + h * 0.002 - (glanceSide < 0 ? smirk : 0));
+      ctx.quadraticCurveTo(0, my + h * 0.001, w * 0.031, my - h * 0.002 - (glanceSide > 0 ? smirk : 0));
+    } else {
+      ctx.moveTo(-w * 0.031, my + h * 0.002);
+      ctx.lineTo(w * 0.031, my - h * 0.002);
+    }
     ctx.stroke();
 
     // 烟
