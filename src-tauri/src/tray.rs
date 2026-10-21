@@ -30,7 +30,8 @@ pub fn create(app: AppHandle) -> tauri::Result<()> {
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("闲牛")
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        // 左键/右键都弹菜单，兼容不同用户习惯
+        .show_menu_on_left_click(true)
         .on_menu_event(|app, event| handle_menu(app, event.id().as_ref()));
 
     if let Some(icon) = app.default_window_icon() {
@@ -45,7 +46,9 @@ pub fn handle_menu(app: &AppHandle, id: &str) {
         "toggle_sound" => {
             let _ = commands::toggle_sound(app.clone());
         }
-        "open_settings" => commands::open_settings_internal(app),
+        "open_settings" => {
+            let _ = commands::open_settings_internal(app);
+        }
         "reset_pos" => commands::reset_position_internal(app),
         "quit" => {
             commands::save_position_if_moved(app);

@@ -4,8 +4,9 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
-import { PlaceholderRenderer } from './placeholder.js';
+import { PlaceholderRenderer, applyStyle } from './placeholder.js';
 import { SoundKit } from './sounds.js';
+import { getModel, nextModelId } from './models.js';
 
 const SPEEDS = { slow: 0.8, normal: 1, fast: 1.25 };
 
@@ -17,7 +18,8 @@ let cfg = await invoke('get_config');
 invoke('debug_log', { msg: `cfg loaded, debug_dump=${cfg.debug_dump}` });
 const sound = new SoundKit(() => cfg.sound_enabled);
 const renderer = new PlaceholderRenderer(canvas);
-invoke('debug_log', { msg: 'renderer created' });
+applyStyle(getModel(cfg.model_id).style);
+invoke('debug_log', { msg: 'renderer created, model=' + cfg.model_id });
 
 let state = 'busy';
 let typing = [];        // 最近按键时间戳 → 敲击强度
@@ -35,7 +37,11 @@ await listen('pet://mouse', (e) => {
   head.ty = ry;
   hitTest(inside);
 });
-await listen('pet://config', (e) => { cfg = e.payload; syncMenu(); });
+await listen('pet://config', (e) => {
+  cfg = e.payload;
+  applyStyle(getModel(cfg.model_id).style);
+  syncMenu();
+});
 await listen('pet://listener-error', (e) => console.warn('[闲牛]', e.payload.message));
 
 /** 逐像素命中测试：光标在非透明像素上才允许鼠标落在小牛窗口 */
@@ -83,6 +89,10 @@ document.addEventListener('mousedown', (e) => {
 });
 document.getElementById('mi-sound').onclick = async () => {
   cfg = await invoke('toggle_sound');
+  syncMenu();
+};
+document.getElementById('mi-model').onclick = async () => {
+  cfg = await invoke('set_config', { patch: { model_id: nextModelId(cfg.model_id) } });
   syncMenu();
 };
 document.getElementById('mi-settings').onclick = () => {

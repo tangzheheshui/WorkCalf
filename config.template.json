@@ -4,6 +4,7 @@
   "scale": 1.0,
   "click_through": false,
   "sound_enabled": true,
+  "model_id": "classic",
   "pos_x": -1,
   "pos_y": -1,
   "debug_dump": false

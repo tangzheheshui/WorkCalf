@@ -104,6 +104,14 @@ pub fn set_config(app: AppHandle, patch: Value) -> Result<AppConfig, String> {
     if let Some(v) = patch.get("sound_enabled").and_then(Value::as_bool) {
         cfg.sound_enabled = v;
     }
+    if let Some(v) = patch.get("model_id").and_then(Value::as_str) {
+        let ok = !v.is_empty()
+            && v.len() <= 32
+            && v.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+        if ok {
+            cfg.model_id = v.to_string();
+        }
+    }
 
     let path = st.cfg_path.clone();
     cfg.save(&path).map_err(|e| e.to_string())?;
@@ -131,26 +139,42 @@ pub fn toggle_sound(app: AppHandle) -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
-pub fn open_settings(app: AppHandle) {
-    open_settings_internal(&app);
+pub fn open_settings(app: AppHandle) -> Result<(), String> {
+    open_settings_internal(&app).map_err(|e| {
+        let msg = format!("打开设置面板失败: {e}");
+        write_log(&msg);
+        msg
+    })
 }
 
-pub fn open_settings_internal(app: &AppHandle) {
+pub fn open_settings_internal(app: &AppHandle) -> tauri::Result<()> {
+    write_log("open_settings: begin");
     if let Some(w) = app.get_webview_window("settings") {
-        let _ = w.show();
-        let _ = w.set_focus();
-    } else {
-        let _ = tauri::WebviewWindowBuilder::new(
-            app,
-            "settings",
-            tauri::WebviewUrl::App("settings.html".into()),
-        )
-        .title("闲牛 · 设置")
-        .inner_size(420.0, 520.0)
-        .resizable(false)
-        .center()
-        .build();
+        w.show()?;
+        w.unminimize()?;
+        w.set_focus()?;
+        write_log("open_settings: reused existing window");
+        return Ok(());
     }
+    let built = tauri::WebviewWindowBuilder::new(
+        app,
+        "settings",
+        tauri::WebviewUrl::App("settings.html".into()),
+    )
+    .title("闲牛 · 设置")
+    .inner_size(440.0, 620.0)
+    .min_inner_size(440.0, 620.0)
+    .resizable(false)
+    .center()
+    // WebView2 要求同一数据目录下所有窗口的浏览器参数一致，否则创建失败
+    .additional_browser_args("--autoplay-policy=no-user-gesture-required")
+    .focused(true)
+    .build();
+    match &built {
+        Ok(_) => write_log("open_settings: window created"),
+        Err(e) => write_log(&format!("open_settings: create failed: {e}")),
+    }
+    built.map(|_| ())
 }
 
 #[tauri::command]
@@ -228,13 +252,17 @@ pub fn debug_dump(data_url: String) -> Result<String, String> {
 /// 调试：前端日志落盘（定位无显示环境下 webview 内的报错）
 #[tauri::command]
 pub fn debug_log(msg: String) {
+    write_log(&msg);
+}
+
+pub fn write_log(msg: &str) {
     let tmp = std::env::temp_dir();
     let line = format!("[{}] {}\n", chrono_free_ts(), msg);
     use std::io::Write as _;
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(tmp.join("workcalf_debug.txt"))
+        .open(tmp.join("workcalf_debug.log"))
     {
         let _ = f.write_all(line.as_bytes());
     }

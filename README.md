@@ -46,6 +46,22 @@ cargo tauri build                            # 需 cargo install tauri-cli；签
 
 依赖：Rust stable（MSVC 工具链）、WebView2（Win10/11 系统自带）。
 
+## 角色模型
+
+内置 4 套模型，右键菜单「换一套模型」或设置面板下拉框切换，**实时生效无需重启**：
+
+| id | 名称 | 特征 |
+|----|------|------|
+| `classic` | 憨厚棕牛（经典） | 棕色、草帽 |
+| `holstein` | 黑白奶牛 | 奶牛花斑、牛铃 |
+| `golden` | 小黄牛 | 金黄、紫耳罩耳机 |
+| `sakura` | 樱花粉牛 | 粉色、蝴蝶结 |
+
+预览图：`docs/previews/*.png`
+
+**新增一套模型**：在 `ui/models.js` 的 `MODELS` 数组加一条即可（配色 + 装饰件），
+不需要改动渲染逻辑；装饰件在 `placeholder.js` 的 `drawHeadAccessory` 里扩展。
+
 ## 配置项（config.json）
 
 | 字段 | 说明 | 可选值/默认 |

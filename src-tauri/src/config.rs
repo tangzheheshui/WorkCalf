@@ -19,6 +19,8 @@ pub struct AppConfig {
     pub click_through: bool,
     /// 音效总开关
     pub sound_enabled: bool,
+    /// 当前角色模型 id（见 ui/models.js）
+    pub model_id: String,
     /// 窗口位置（逻辑坐标），-1 表示默认右下角
     pub pos_x: i32,
     pub pos_y: i32,
@@ -34,6 +36,7 @@ impl Default for AppConfig {
             scale: 1.0,
             click_through: false,
             sound_enabled: true,
+            model_id: "classic".into(),
             pos_x: -1,
             pos_y: -1,
             debug_dump: false,

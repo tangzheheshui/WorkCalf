@@ -65,6 +65,14 @@ fn main() {
                     commands::start_debug_simulator(&handle);
                 }
             }
+            // 测试钩子：WORKCALF_AUTO_SETTINGS=1 时启动 4s 后自动打开设置面板
+            if std::env::var("WORKCALF_AUTO_SETTINGS").ok().as_deref() == Some("1") {
+                let h = handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(4));
+                    let _ = commands::open_settings_internal(&h);
+                });
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

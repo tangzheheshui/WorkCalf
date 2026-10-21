@@ -4,7 +4,7 @@
 //   hitTest(x, y) -> boolean   // 供逐像素鼠标穿透
 // 接入真实 Live2D 模型时，替换本文件实现即可（加载 assets/model/*.model3.json）。
 
-const C = {
+const DEFAULT_STYLE = {
   body: '#9c6b4a',
   bodyDark: '#82563a',
   belly: '#c99e77',
@@ -25,7 +25,17 @@ const C = {
   cushion: '#a04a48',
   sweat: 'rgba(120,190,235,0.9)',
   shadow: 'rgba(60,35,15,0.18)',
+  spots: false,
+  accessory: null, // straw | bell | headphones | flower
 };
+
+// 当前生效的配色（由 applyStyle 切换）
+let C = { ...DEFAULT_STYLE };
+
+/** 切换模型：合并 style，下一帧即生效 */
+export function applyStyle(style) {
+  C = { ...DEFAULT_STYLE, ...(style || {}) };
+}
 
 function ell(ctx, x, y, rx, ry, color, rot = 0) {
   ctx.beginPath();
@@ -151,6 +161,7 @@ export class PlaceholderRenderer {
 
     // 身体 + 肚皮
     ell(ctx, bodyC.x, bodyC.y, bodyRx, bodyRy, C.body);
+    if (C.spots) this.drawSpots(ctx, bodyC, bodyRx, bodyRy, 'body', p.headX);
     ell(ctx, bodyC.x, bodyC.y + bodyRy * 0.28, bodyRx * 0.62, bodyRy * 0.55, C.belly);
 
     // 头部（含耳、角、脸）
@@ -221,6 +232,7 @@ export class PlaceholderRenderer {
     ell(ctx, cx + w * 0.235, h * 0.72, w * 0.115, h * 0.105, C.bodyDark);
     // 身体 + 肚皮
     ell(ctx, bodyC.x, bodyC.y, bodyRx, bodyRy, C.body);
+    if (C.spots) this.drawSpots(ctx, bodyC, bodyRx, bodyRy, 'body', p.headX);
     ell(ctx, bodyC.x, bodyC.y + bodyRy * 0.3, bodyRx * 0.6, bodyRy * 0.5, C.belly);
 
     this.drawHead(ctx, headC, headR, headRot, u, p, false, true);
@@ -288,7 +300,13 @@ export class PlaceholderRenderer {
 
     // 头 + 额斑
     ell(ctx, 0, 0, r, r * 0.92, C.body);
-    ell(ctx, 0, -r * 0.55, r * 0.42, r * 0.26, C.bodyDark);
+    if (C.spots) {
+      // 奶牛花斑：头侧一块、额心一块
+      ell(ctx, -r * 0.66, -r * 0.18, r * 0.30, r * 0.26, C.bodyDark, -0.3);
+      ell(ctx, 0, -r * 0.55, r * 0.42, r * 0.26, C.bodyDark);
+    } else {
+      ell(ctx, 0, -r * 0.55, r * 0.42, r * 0.26, C.bodyDark);
+    }
 
     // 眼睛
     const blinkScale = this.blink.active > 0
@@ -340,7 +358,90 @@ export class PlaceholderRenderer {
     ell(ctx, -r * 0.62, r * 0.22, r * 0.13, r * 0.08, C.blush);
     ell(ctx, r * 0.62, r * 0.22, r * 0.13, r * 0.08, C.blush);
 
+    // 装饰件（草帽/耳机戴在头上）
+    this.drawHeadAccessory(ctx, r);
+
     ctx.restore();
+  }
+
+  /** 身体花斑（奶牛） */
+  drawSpots(ctx, c, rx, ry, kind, headX) {
+    const shift = (headX || 0) * rx * 0.04;
+    ell(ctx, c.x - rx * 0.62 + shift, c.y - ry * 0.24, rx * 0.30, ry * 0.34, C.bodyDark, -0.25);
+    ell(ctx, c.x + rx * 0.58 + shift, c.y + ry * 0.14, rx * 0.24, ry * 0.30, C.bodyDark, 0.3);
+    ell(ctx, c.x + rx * 0.10 + shift, c.y - ry * 0.55, rx * 0.22, ry * 0.20, C.bodyDark, 0.15);
+  }
+
+  /** 头部装饰（在头部局部坐标系内绘制） */
+  drawHeadAccessory(ctx, r) {
+    switch (C.accessory) {
+      case 'straw': {
+        // 草帽：帽檐 + 帽顶 + 帽带
+        ell(ctx, 0, -r * 0.82, r * 0.78, r * 0.20, '#d8b26a', -0.03);
+        ell(ctx, 0, -r * 0.99, r * 0.42, r * 0.30, '#e6c47e');
+        ctx.beginPath();
+        ctx.roundRect(-r * 0.40, -r * 0.95, r * 0.80, r * 0.10, r * 0.04);
+        ctx.fillStyle = '#b8894a';
+        ctx.fill();
+        break;
+      }
+      case 'bell': {
+        // 牛铃：挂在头下方（脖子处），随头轻摆
+        const sw = Math.sin(this.t * 2) * 0.12;
+        ctx.save();
+        ctx.translate(0, r * 1.22);
+        ctx.rotate(sw);
+        ctx.strokeStyle = '#8a6a3a';
+        ctx.lineWidth = r * 0.05;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.22, 0);
+        ctx.lineTo(r * 0.22, 0);
+        ctx.stroke();
+        ell(ctx, 0, r * 0.16, r * 0.14, r * 0.16, '#e0b73f');
+        ell(ctx, 0, r * 0.24, r * 0.10, r * 0.07, '#c99a2c');
+        ell(ctx, 0, r * 0.29, r * 0.035, r * 0.035, '#7a5a1a');
+        ctx.restore();
+        break;
+      }
+      case 'headphones': {
+        // 耳机：头梁 + 两侧耳罩
+        ctx.strokeStyle = '#4a4f5a';
+        ctx.lineWidth = r * 0.10;
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.10, r * 1.02, Math.PI * 1.08, Math.PI * 1.92);
+        ctx.stroke();
+        for (const side of [-1, 1]) {
+          ell(ctx, side * r * 1.0, -r * 0.06, r * 0.20, r * 0.26, '#5c6470', side * 0.12);
+          ell(ctx, side * r * 1.06, -r * 0.06, r * 0.11, r * 0.16, '#8f6fc4', side * 0.12);
+        }
+        break;
+      }
+      case 'bow': {
+        // 蝴蝶结：别在头顶偏左
+        ctx.save();
+        ctx.translate(-r * 0.08, -r * 0.98);
+        ctx.rotate(-0.12);
+        ell(ctx, -r * 0.24, 0, r * 0.21, r * 0.14, '#e0576f', 0.3);
+        ell(ctx, r * 0.24, 0, r * 0.21, r * 0.14, '#e0576f', -0.3);
+        ell(ctx, 0, 0, r * 0.09, r * 0.09, '#c9435a');
+        ell(ctx, -r * 0.20, -r * 0.02, r * 0.09, r * 0.05, 'rgba(255,255,255,0.28)', 0.3);
+        ctx.restore();
+        break;
+      }
+      case 'flower': {
+        // 小花：别在右耳旁
+        ctx.save();
+        ctx.translate(r * 0.96, -r * 0.30);
+        ctx.rotate(this.t * 0.2);
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2;
+          ell(ctx, Math.cos(a) * r * 0.11, Math.sin(a) * r * 0.11, r * 0.09, r * 0.09, '#fff1f4');
+        }
+        ell(ctx, 0, 0, r * 0.08, r * 0.08, '#f2c94c');
+        ctx.restore();
+        break;
+      }
+    }
   }
 
   // ---------- 流汗（高速敲击） ----------

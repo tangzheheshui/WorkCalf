@@ -2,8 +2,11 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+import { MODELS } from './models.js';
+
 const $ = (id) => document.getElementById(id);
 const els = {
+  model: $('model'),
   idle: $('idle'),
   speed: $('speed'),
   scale: $('scale'),
@@ -13,9 +16,16 @@ const els = {
 };
 
 let cfg = await invoke('get_config');
+invoke('debug_log', { msg: 'settings.js running, cfg=' + JSON.stringify(cfg) }).catch(() => {});
+
+// 填充模型下拉框
+els.model.innerHTML = MODELS.map(
+  (m) => `<option value="${m.id}">${m.name}</option>`,
+).join('');
 
 function fill(c) {
   cfg = c;
+  els.model.value = c.model_id;
   els.idle.value = String(c.idle_timeout_secs);
   els.speed.value = c.anim_speed;
   els.scale.value = c.scale;
@@ -26,6 +36,7 @@ function fill(c) {
 fill(cfg);
 
 // 修改 → 实时下发
+els.model.onchange = () => invoke('set_config', { patch: { model_id: els.model.value } });
 els.idle.onchange = () => invoke('set_config', { patch: { idle_timeout_secs: Number(els.idle.value) } });
 els.speed.onchange = () => invoke('set_config', { patch: { anim_speed: els.speed.value } });
 els.scale.oninput = () => {
