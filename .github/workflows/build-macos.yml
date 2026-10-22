@@ -8,7 +8,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  contents: write   # tag 触发时把 dmg 挂到 GitHub Release
 
 jobs:
   build:
@@ -44,9 +44,26 @@ jobs:
       - name: Build dmg
         run: tauri build --target ${{ matrix.target }} --bundles app,dmg
 
-      - name: Upload dmg
+      - name: Upload dmg (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: WorkCalf-macos-${{ matrix.arch }}
           path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           if-no-files-found: error
+
+  # tag 触发时把两个 dmg 挂到 GitHub Release：无需登录即可下载，也方便部署脚本取包
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*.dmg
+          fail_on_unmatched_files: true
