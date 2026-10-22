@@ -12,7 +12,6 @@ const SPEEDS = { slow: 0.8, normal: 1, fast: 1.25 };
 
 const canvas = document.getElementById('pet');
 const stage = document.getElementById('stage');
-const menu = document.getElementById('ctxmenu');
 
 let cfg = await invoke('get_config');
 invoke('debug_log', { msg: `cfg loaded, debug_dump=${cfg.debug_dump}, opacity=${cfg.opacity}` });
@@ -214,21 +213,9 @@ stage.addEventListener('mousedown', (e) => {
   if (e.button === 0) rest.until = 0;
 });
 
-// ---------- 右键菜单 ----------
-stage.addEventListener('contextmenu', (e) => {
-  e.preventDefault();
-  menu.classList.remove('hidden');
-  menu.style.left = Math.min(e.clientX, window.innerWidth - 150) + 'px';
-  menu.style.top = Math.min(e.clientY, window.innerHeight - 180) + 'px';
-});
-document.addEventListener('mousedown', (e) => {
-  if (!menu.contains(e.target)) menu.classList.add('hidden');
-});
-document.getElementById('mi-settings').onclick = () => {
-  menu.classList.add('hidden');
-  invoke('open_settings');
-};
-document.getElementById('mi-quit').onclick = () => invoke('quit_app');
+// ---------- 右键 ----------
+// 小牛本体右键不弹菜单（设置/退出走系统托盘）；仅屏蔽浏览器默认菜单
+stage.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------- 滚轮缩放 ----------
 // 鼠标停在桌宠窗口上滚轮即可调整显示比例（0.3~2.0）；

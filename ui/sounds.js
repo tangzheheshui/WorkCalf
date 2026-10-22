@@ -40,30 +40,44 @@ export class SoundKit {
     } catch { /* 音频不可用时静默 */ }
   }
 
-  /** 木鱼声：双振荡器下滑音，模拟木质空腔敲击 */
+  /** 木鱼声：木槌噪点击 + 非谐泛音空腔共鸣，合成「笃」的敲木声 */
   muyu() {
     if (!this.isEnabled()) return;
     try {
       const ctx = this.ensure();
       const t = ctx.currentTime;
-      const o = ctx.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(860, t);
-      o.frequency.exponentialRampToValueAtTime(240, t + 0.12);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.55, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-      const o2 = ctx.createOscillator();
-      o2.type = 'triangle';
-      o2.frequency.setValueAtTime(1720, t);
-      o2.frequency.exponentialRampToValueAtTime(520, t + 0.08);
-      const g2 = ctx.createGain();
-      g2.gain.setValueAtTime(0.14, t);
-      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      o.connect(g); g.connect(ctx.destination);
-      o2.connect(g2); g2.connect(ctx.destination);
-      o.start(t); o.stop(t + 0.2);
-      o2.start(t); o2.stop(t + 0.12);
+      // 每次敲击随机微调音高，连续敲不显机械
+      const k = 1 + (Math.random() - 0.5) * 0.08;
+      const f0 = 720 * k;
+
+      // 攻击层：木槌碰到木头的「嗒」，短噪声过带通
+      const click = ctx.createBufferSource();
+      click.buffer = this.noise(ctx);
+      const cf = ctx.createBiquadFilter();
+      cf.type = 'bandpass';
+      cf.frequency.value = 2800 * k;
+      cf.Q.value = 0.8;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.4, t);
+      cg.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
+      click.connect(cf); cf.connect(cg); cg.connect(ctx.destination);
+      click.start(t); click.stop(t + 0.02);
+
+      // 共鸣层：基音 + 非整数倍泛音 + 低八度空腔，轻微下坠模拟木头阻尼
+      const partial = (freq, vol, dur) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(freq, t);
+        o.frequency.exponentialRampToValueAtTime(freq * 0.94, t + dur);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+      };
+      partial(f0, 0.5, 0.14);         // 基音
+      partial(f0 * 2.76, 0.12, 0.05); // 非谐泛音：木质感
+      partial(f0 * 0.5, 0.16, 0.2);   // 低八度共鸣：空腔感
     } catch { /* 静默 */ }
   }
 
