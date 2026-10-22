@@ -25,7 +25,7 @@ pub struct AppConfig {
     pub model_id: String,
     /// 键鼠累计输入次数（键盘按键 + 鼠标左键点击）——休息提醒用
     pub usage_count: u64,
-    /// 休息提醒开关：累计输入达到阈值时让小牛喊你歇会儿
+    /// 休息提醒开关：累计输入达到阈值时让小牛停下手里的活自嘲两句
     pub rest_reminder: bool,
     /// 休息提醒间隔（键鼠累计次数），10 ~ 10000（10 供测试用）
     pub rest_interval: u64,

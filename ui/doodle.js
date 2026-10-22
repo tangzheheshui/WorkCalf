@@ -406,17 +406,19 @@ export class DoodleRenderer {
   }
 
   // ---------- 休息提醒气泡 ----------
-  // 手绘纸片 + 朝下的小尾巴，淡入淡出；宽度不够时按字符换行（中英文都适用）
+  // 手绘纸片 + 朝下的小尾巴，淡入淡出；宽度不够时按字符换行（中英文都适用）。
+  // 整体压在脑袋上方：字号/行距/尾巴都收着点，休息态脑袋从 0.27h 往上留白，
+  // 尾巴尖端不越过这条线，避免像扎进头发里。
   drawRestBubble(ctx, w, h, u, text, age, dur) {
-    const pad = 9 * u;
-    const lh = 19 * u;
-    const font = `600 ${13 * u}px "Microsoft YaHei", "PingFang SC", system-ui, sans-serif`;
+    const pad = 7 * u;
+    const lh = 16 * u;
+    const font = `600 ${12 * u}px "Microsoft YaHei", "PingFang SC", system-ui, sans-serif`;
     ctx.save();
     ctx.font = font;
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
 
-    const maxW = w * 0.82;
+    const maxW = w * 0.90;
     // 标点不放行首：放不下时让它跟着上一行走
     const NO_LINE_START = '，。、！？；：…—）」』》〉】,.;:!?)]}%';
     const lines = [];
@@ -437,10 +439,11 @@ export class DoodleRenderer {
     if (cur) lines.push(cur);
 
     const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
-    const bw = Math.min(w * 0.92, textW + pad * 2);
+    const bw = Math.min(w * 0.95, textW + pad * 2);
     const bh = lines.length * lh + pad * 2 - 2 * u;
     const bx = (w - bw) / 2;
-    const by = h * 0.035;
+    // 贴顶放，给脑袋留出空间；h*0.27 是休息态头顶的位置
+    const by = 2 * u;
 
     // 弹出（带回弹）+ 淡入淡出 + 轻微上浮，保证一眼能注意到
     const pop = Math.min(1, age / 0.24);
@@ -468,12 +471,12 @@ export class DoodleRenderer {
     ctx.lineWidth = 2.6 * u;
     ctx.stroke();
 
-    // 小尾巴：朝下指着小牛（他坐在画面中偏左）
-    const tx = bx + bw * 0.34;
+    // 小尾巴：朝下指着小牛（他坐在画面中偏左），短一点，不戳到头顶
+    const tx = bx + bw * 0.36;
     ctx.beginPath();
-    ctx.moveTo(tx - 7 * u, by + bh - 1);
-    ctx.lineTo(tx + 1 * u, by + bh + 11 * u);
-    ctx.lineTo(tx + 10 * u, by + bh - 1);
+    ctx.moveTo(tx - 5 * u, by + bh - 1);
+    ctx.lineTo(tx + 0.5 * u, by + bh + 5 * u);
+    ctx.lineTo(tx + 7 * u, by + bh - 1);
     ctx.closePath();
     ctx.fillStyle = '#fff5e6';
     ctx.fill();
@@ -481,8 +484,8 @@ export class DoodleRenderer {
     ctx.stroke();
     // 盖掉尾巴压住的纸片底边
     ctx.beginPath();
-    ctx.moveTo(tx - 6 * u, by + bh - 1.5 * u);
-    ctx.lineTo(tx + 9 * u, by + bh - 1.5 * u);
+    ctx.moveTo(tx - 4 * u, by + bh - 1.5 * u);
+    ctx.lineTo(tx + 6 * u, by + bh - 1.5 * u);
     ctx.strokeStyle = '#fff5e6';
     ctx.lineWidth = 2.6 * u;
     ctx.stroke();
