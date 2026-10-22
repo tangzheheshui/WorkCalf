@@ -11,6 +11,11 @@ mod tray;
 use std::sync::Mutex;
 use tauri::Manager;
 
+/// 所有 WebView2 窗口必须用完全一致的浏览器参数（同一用户数据目录只能有一个环境），
+/// 必须与 tauri.conf.json 里主窗口的 additionalBrowserArgs 逐字一致。
+pub const WEBVIEW_BROWSER_ARGS: &str =
+    "--autoplay-policy=no-user-gesture-required --disable-features=CalculateNativeWinOcclusion";
+
 pub struct AppState {
     /// 当前配置（内存副本）
     pub cfg: Mutex<config::AppConfig>,
@@ -104,10 +109,16 @@ fn main() {
             commands::mac_permission_status,
             commands::open_mac_accessibility,
             commands::open_url,
+            commands::settings_ready,
             commands::debug_dump,
             commands::debug_log,
         ])
         .setup(move |app| {
+            // 记录运行环境，便于排查白屏等机器相关问题
+            commands::write_log(&format!(
+                "startup: webview2={:?}",
+                tauri::webview_version()
+            ));
             // 等待“重复启动”信号：双击 exe / 快捷方式 → 打开设置面板
             #[cfg(windows)]
             if open_settings_event != 0 {
@@ -123,13 +134,8 @@ fn main() {
                     if r != WAIT_OBJECT_0 {
                         break;
                     }
-                    let h = app_handle.clone();
-                    let _ = app_handle.run_on_main_thread(move || {
-                        let _ = commands::open_settings_internal(&h);
-                        if let Some(w) = h.get_webview_window("main") {
-                            let _ = w.set_focus();
-                        }
-                    });
+                    // 窗口创建放到后台线程，主线程只跑事件循环
+                    commands::open_settings_async(&app_handle);
                 });
             }
 

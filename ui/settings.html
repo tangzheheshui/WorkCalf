@@ -266,6 +266,20 @@
   </style>
 </head>
 <body>
+  <!-- 脚本异常时的兜底提示：避免只看到一片空白不知道发生了什么 -->
+  <div id="boot-warn" hidden style="position:fixed;inset:auto 16px 16px 16px;z-index:99;padding:12px 14px;border-radius:10px;background:#fdecea;border:1px solid #f3c2bb;color:#8a3a2c;font-size:12.5px;line-height:1.6">
+    设置页没有正常加载。可以关掉窗口再打开一次；如果反复出现，请把
+    <code>%TEMP%\workcalf_debug.log</code> 发给作者。
+  </div>
+  <script>
+    // 5 秒内 settings.js 没有跑起来就显示上面的提示
+    setTimeout(function () {
+      if (!window.__settingsBooted) {
+        var el = document.getElementById('boot-warn');
+        if (el) el.hidden = false;
+      }
+    }, 5000);
+  </script>
   <div class="app">
     <aside class="side">
       <div class="brand">

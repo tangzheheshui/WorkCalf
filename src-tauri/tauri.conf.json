@@ -22,7 +22,7 @@
         "skipTaskbar": true,
         "resizable": false,
         "shadow": false,
-        "additionalBrowserArgs": "--autoplay-policy=no-user-gesture-required"
+        "additionalBrowserArgs": "--autoplay-policy=no-user-gesture-required --disable-features=CalculateNativeWinOcclusion"
       }
     ],
     "security": {

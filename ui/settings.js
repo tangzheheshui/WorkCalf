@@ -2,6 +2,9 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+// 标记脚本已经跑起来：settings.html 里的内联脚本据此判断是否要显示加载失败提示
+window.__settingsBooted = true;
+
 const $ = (id) => document.getElementById(id);
 const els = {
   scale: $('scale'),
@@ -180,7 +183,13 @@ $('fb-reward').onclick = () => setRewardOpen(true);
 $('reward-close').onclick = () => setRewardOpen(false);
 $('reward-mask').onclick = () => setRewardOpen(false);
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !rewardModal.hidden) setRewardOpen(false);
+  if (e.key !== 'Escape') return;
+  if (!rewardModal.hidden) {
+    setRewardOpen(false);
+    return;
+  }
+  // 没有弹窗时 Esc 直接关掉设置面板，和原生窗口的关闭按钮等效
+  window.close();
 });
 
 // ---------- 检查更新 ----------
@@ -263,4 +272,6 @@ const ok = await invoke('mac_permission_status');
 if (!ok) $('mac-warn').style.display = 'block';
 $('open-a11y').onclick = () => invoke('open_mac_accessibility');
 
+// 告诉 Rust 侧页面确实加载了（白屏看门狗用它判断）
+invoke('settings_ready').catch(() => {});
 invoke('debug_log', { msg: 'settings ready' }).catch(() => {});

@@ -34,7 +34,7 @@ pub fn create(app: AppHandle) -> tauri::Result<()> {
                 }
             );
             if open {
-                let _ = commands::open_settings_internal(tray.app_handle());
+                commands::open_settings_async(tray.app_handle());
             }
         });
 
@@ -48,7 +48,7 @@ pub fn create(app: AppHandle) -> tauri::Result<()> {
 pub fn handle_menu(app: &AppHandle, id: &str) {
     match id {
         "open_settings" => {
-            let _ = commands::open_settings_internal(app);
+            commands::open_settings_async(app);
         }
         "quit" => {
             commands::save_position_if_moved(app);

@@ -1,7 +1,11 @@
 //! Tauri IPC 命令层 + 窗口/配置应用逻辑（跨平台共享）
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewWindow, Wry};
+
+/// 设置页脚本跑完后会调用 `settings_ready`；用于白屏看门狗判断页面是否真的加载了。
+static SETTINGS_READY: AtomicBool = AtomicBool::new(false);
 
 use crate::config::AppConfig;
 use crate::{input, AppState};
@@ -157,13 +161,34 @@ pub fn toggle_sound(app: AppHandle) -> Result<AppConfig, String> {
     set_config(app, json!({ "sound_enabled": !cur }))
 }
 
+/// 注意：必须是 async 命令。同步命令会在 WebView2 的 IPC 回调里直接执行，
+/// 在其中新建 webview 属于重入，部分机器/WebView2 版本会卡住整条 UI 线程
+/// （表现就是设置窗口一片白、点关闭也没反应）。async 命令改到工作线程执行，
+/// 由主线程事件循环完成窗口创建。
 #[tauri::command]
-pub fn open_settings(app: AppHandle) -> Result<(), String> {
+pub async fn open_settings(app: AppHandle) -> Result<(), String> {
     open_settings_internal(&app).map_err(|e| {
         let msg = format!("打开设置面板失败: {e}");
         write_log(&msg);
         msg
     })
+}
+
+/// 托盘/二次启动等主线程回调里用它：把窗口创建丢到后台线程，
+/// 主线程只负责事件循环，避免重入创建 webview 卡死界面。
+pub fn open_settings_async(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        if let Err(e) = open_settings_internal(&app) {
+            write_log(&format!("open_settings: failed: {e}"));
+        }
+    });
+}
+
+/// 设置页加载完成后由前端调用，喂给白屏看门狗。
+#[tauri::command]
+pub fn settings_ready() {
+    SETTINGS_READY.store(true, Ordering::SeqCst);
 }
 
 pub fn open_settings_internal(app: &AppHandle) -> tauri::Result<()> {
@@ -175,6 +200,7 @@ pub fn open_settings_internal(app: &AppHandle) -> tauri::Result<()> {
         write_log("open_settings: reused existing window");
         return Ok(());
     }
+    SETTINGS_READY.store(false, Ordering::SeqCst);
     let built = tauri::WebviewWindowBuilder::new(
         app,
         "settings",
@@ -187,13 +213,37 @@ pub fn open_settings_internal(app: &AppHandle) -> tauri::Result<()> {
     // 设置面板不单独占任务栏按钮，避免任务栏多出一个图标
     .skip_taskbar(true)
     .center()
-    // WebView2 要求同一数据目录下所有窗口的浏览器参数一致，否则创建失败
-    .additional_browser_args("--autoplay-policy=no-user-gesture-required")
+    // WebView2 要求同一数据目录下所有窗口的浏览器参数一致，否则创建失败。
+    // 这里的字符串必须和 tauri.conf.json 主窗口的 additionalBrowserArgs 完全一致。
+    .additional_browser_args(crate::WEBVIEW_BROWSER_ARGS)
     .focused(true)
+    .on_page_load(|_w, payload| {
+        write_log(&format!("settings: page load event, url={}", payload.url()));
+    })
     .build();
     match &built {
         Ok(_) => write_log("open_settings: window created"),
         Err(e) => write_log(&format!("open_settings: create failed: {e}")),
+    }
+    if let Ok(w) = &built {
+        // 白屏看门狗：页面正常加载时 settings.js 会调用 settings_ready。
+        // 8 秒还没就绪 → 重新加载一次；再 8 秒仍没就绪 → 销毁窗口，
+        // 让用户再点一次就能重新创建，而不是留一个关不掉的白色窗口。
+        let w = w.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(8));
+            if SETTINGS_READY.load(Ordering::SeqCst) {
+                return;
+            }
+            write_log("settings watchdog: page not ready after 8s, reloading");
+            let _ = w.eval("location.reload()");
+            std::thread::sleep(std::time::Duration::from_secs(8));
+            if SETTINGS_READY.load(Ordering::SeqCst) {
+                return;
+            }
+            write_log("settings watchdog: still not ready, destroying window");
+            let _ = w.destroy();
+        });
     }
     built.map(|_| ())
 }
