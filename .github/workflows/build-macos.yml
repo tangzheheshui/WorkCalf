@@ -41,14 +41,29 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Build dmg
-        run: tauri build --target ${{ matrix.target }} --bundles app,dmg
+      - name: Build app
+        run: tauri build --target ${{ matrix.target }} --bundles app
+
+      # 不签名的 app 带 quarantine 会被 Gatekeeper 判"已损坏"（Apple Silicon 内核直接拒绝启动），
+      # ad-hoc 签名后用户右键 → 打开即可通过；无需开发者证书。
+      - name: Ad-hoc sign
+        run: codesign --force --deep -s - "src-tauri/target/${{ matrix.target }}/release/bundle/macos/WorkCalf.app"
+
+      # 不用 tauri 自带 bundle_dmg（依赖 Finder AppleScript，无头环境会超时），hdiutil 直压。
+      # 文件名直接用官网 download/ 约定的固定名，服务器拉取后无需改名。
+      - name: Pack dmg
+        run: |
+          STAGE=$(mktemp -d)
+          cp -R "src-tauri/target/${{ matrix.target }}/release/bundle/macos/WorkCalf.app" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          if [ "${{ matrix.arch }}" = "arm64" ]; then NAME=WorkCalf-mac-arm64.dmg; else NAME=WorkCalf-mac-x64.dmg; fi
+          hdiutil create -volname WorkCalf -srcfolder "$STAGE" -format UDZO -fs HFS+ -ov -o "$NAME"
 
       - name: Upload dmg (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: WorkCalf-macos-${{ matrix.arch }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          path: WorkCalf-mac-*.dmg
           if-no-files-found: error
 
   # tag 触发时把两个 dmg 挂到 GitHub Release：无需登录即可下载，也方便部署脚本取包
@@ -66,4 +81,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/**/*.dmg
+          overwrite: true
           fail_on_unmatched_files: true
