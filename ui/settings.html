@@ -68,7 +68,6 @@
       border-radius: 2px;
       background: #b3543f;
     }
-    .side-foot { margin-top: auto; padding: 8px 8px 2px; font-size: 11px; color: #b3a28e; }
 
     /* ---- 右侧内容 ---- */
     .main {
@@ -79,11 +78,8 @@
     }
     .main::-webkit-scrollbar { width: 8px; }
     .main::-webkit-scrollbar-thumb { background: #e3d5c2; border-radius: 4px; }
-    h2 { font-size: 16px; margin: 2px 0 12px; }
     .pane { display: none; }
     .pane.active { display: block; }
-    .desc { margin: -4px 0 12px; font-size: 13px; color: #8a7763; }
-    .muted { color: #a0907c; font-size: 12px; font-weight: 400; }
 
     .card {
       background: #fffdf9;
@@ -133,9 +129,6 @@
     }
 
     /* ---- 关于 ---- */
-    .about-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-    .about-head img { width: 52px; height: 52px; border-radius: 12px; }
-    .about-name { font-size: 17px; font-weight: 700; }
     .kv {
       display: flex;
       justify-content: space-between;
@@ -146,7 +139,23 @@
     }
     .kv + .kv { border-top: 1px dashed #f0e6d8; }
     .kv b { color: #4a3b2e; }
-    .foot-note { font-size: 12px; color: #a0907c; margin: 2px 2px 0; }
+    .kv-actions { display: flex; align-items: center; gap: 8px; }
+
+    .empty-box {
+      margin-top: 12px;
+      padding: 26px 16px;
+      border: 1px dashed #e7dac9;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 12.5px;
+      color: #a0907c;
+    }
+    .empty-box b {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13.5px;
+      color: #7a6a58;
+    }
 
     /* ---- 意见反馈 ---- */
     .field { margin-bottom: 14px; }
@@ -167,10 +176,9 @@
     .fb-actions {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: flex-end;
+      gap: 10px;
     }
-    .fb-actions .hint { margin: 0; }
     .btn {
       all: unset;
       flex: none;
@@ -192,8 +200,69 @@
     }
     .btn.primary:hover { background: #a3472f; }
     .btn:disabled { opacity: 0.55; cursor: default; }
+    .btn.sm { padding: 4px 12px; font-size: 12px; border-radius: 7px; }
     .status { min-height: 20px; margin: 10px 0 0; font-size: 12px; color: #6f8f5f; }
+    .status:empty { display: none; }
     .status.warn { color: #b3543f; }
+
+    /* ---- 打赏弹窗 ---- */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal[hidden] { display: none; }
+    .modal-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(74, 59, 46, 0.35);
+    }
+    .modal-card {
+      position: relative;
+      background: #fffdf9;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 18px 48px rgba(74, 59, 46, 0.22);
+    }
+    .qr { margin: 0; text-align: center; }
+    .qr[hidden] { display: none; }
+    .qr img {
+      display: block;
+      width: 240px;
+      height: 240px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .qr figcaption { margin-top: 8px; font-size: 12px; color: #8a7763; }
+    .modal-close {
+      all: unset;
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #fffdf9;
+      border: 1px solid #e3d5c2;
+      color: #8a7763;
+      font-size: 18px;
+      line-height: 26px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: #b3543f; border-color: #d2a58f; }
+    .modal-empty {
+      margin: 0;
+      width: 220px;
+      padding: 60px 0;
+      text-align: center;
+      font-size: 12px;
+      color: #a0907c;
+    }
   </style>
 </head>
 <body>
@@ -205,10 +274,10 @@
       </div>
       <nav class="nav">
         <button class="nav-btn active" data-tab="prefs">偏好</button>
+        <button class="nav-btn" data-tab="models">模型</button>
         <button class="nav-btn" data-tab="about">关于</button>
         <button class="nav-btn" data-tab="feedback">意见反馈</button>
       </nav>
-      <div class="side-foot">v<span id="side-ver">1.0.0</span> · 纯本地运行</div>
     </aside>
 
     <main class="main">
@@ -220,7 +289,6 @@
 
       <!-- 偏好 -->
       <section class="pane active" id="pane-prefs">
-        <h2>偏好</h2>
         <div class="card">
           <div class="row">
             <div class="row-head">
@@ -257,41 +325,49 @@
         </div>
       </section>
 
-      <!-- 关于 -->
-      <section class="pane" id="pane-about">
-        <h2>关于</h2>
-        <div class="about-head">
-          <img src="assets/app-icon.png" alt="" />
-          <div>
-            <div class="about-name">勤劳的牛牛</div>
-            <div class="muted">WorkCalf · v<span id="app-ver">1.0.0</span></div>
+      <!-- 模型 -->
+      <section class="pane" id="pane-models">
+        <div class="card">
+          <div class="kv"><span>当前模型</span><b>白牛牛</b></div>
+          <div class="empty-box">
+            <b>更多模型还没上架</b>
+            上架后可以在这里一键切换，不用重新下载。
           </div>
         </div>
+      </section>
+
+      <!-- 关于 -->
+      <section class="pane" id="pane-about">
         <div class="card">
           <div class="kv"><span>版本</span><b>v<span id="about-ver">1.0.0</span></b></div>
-          <div class="kv"><span>运行方式</span><span>纯本地运行 · 无需登录</span></div>
-          <div class="kv"><span>官网 / 下载</span><span class="muted">即将上线</span></div>
+          <div class="kv">
+            <span>官网 / 下载</span>
+            <button class="btn sm" id="open-site">打开官网</button>
+          </div>
+          <div class="kv">
+            <span>更新</span>
+            <span class="kv-actions">
+              <button class="btn sm" id="check-update">检查更新</button>
+              <button class="btn sm primary" id="update-download" style="display:none">去下载</button>
+            </span>
+          </div>
+          <p id="update-status" class="status"></p>
         </div>
-        <p class="foot-note">
-          除你主动提交反馈外，程序不会发起网络请求；也不会上传任何键鼠记录。
-        </p>
       </section>
 
       <!-- 意见反馈 -->
       <section class="pane" id="pane-feedback">
-        <h2>意见反馈</h2>
-        <p class="desc">遇到问题、想要新功能，或者单纯想吐槽，都可以写在这里。</p>
         <div class="card">
-          <div class="field">
-            <label for="fb-contact">联系方式 <span class="muted">（选填，方便回复你）</span></label>
-            <input id="fb-contact" type="text" maxlength="120" placeholder="邮箱 / QQ / 微信" />
-          </div>
           <div class="field">
             <label for="fb-message">反馈内容</label>
             <textarea id="fb-message" rows="6" maxlength="2000" placeholder="说说你遇到的问题或建议…"></textarea>
           </div>
+          <div class="field">
+            <label for="fb-contact">联系方式</label>
+            <input id="fb-contact" type="text" maxlength="120" placeholder="选填，方便回复你" />
+          </div>
           <div class="fb-actions">
-            <span class="hint">会附带版本号和系统信息，不会上传键鼠记录。</span>
+            <button class="btn" id="fb-reward">打赏</button>
             <button class="btn primary" id="fb-submit">提交反馈</button>
           </div>
           <p id="fb-status" class="status"></p>
@@ -299,6 +375,19 @@
       </section>
     </main>
   </div>
+
+  <div class="modal" id="reward-modal" hidden>
+    <div class="modal-mask" id="reward-mask"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="打赏二维码">
+      <button class="modal-close" id="reward-close" aria-label="关闭">×</button>
+      <figure class="qr">
+        <img id="reward-img" src="assets/reward-qr.png" alt="打赏二维码" />
+        <figcaption>微信扫码打赏</figcaption>
+      </figure>
+      <p class="modal-empty" id="reward-empty" hidden>二维码暂未配置</p>
+    </div>
+  </div>
+
   <script type="module" src="settings.js"></script>
 </body>
 </html>

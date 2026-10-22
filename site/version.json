@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-10-22",
+  "url": "download/WorkCalf.exe",
+  "urls": {
+    "win_portable": "download/WorkCalf.exe",
+    "win_setup": "download/WorkCalf-Setup.exe"
+  },
+  "notes": ""
+}

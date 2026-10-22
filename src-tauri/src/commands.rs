@@ -234,6 +234,45 @@ pub fn open_mac_accessibility() {
     }
 }
 
+/// 用系统默认浏览器打开 http/https 链接（设置面板「去下载」用）。
+/// 只放行 http/https，避免被前端当成任意命令执行。
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return Err("只支持 http/https 链接".into());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        std::process::Command::new("rundll32.exe")
+            .args(["url.dll,FileProtocolHandler", &url])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("打开链接失败: {e}"))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("打开链接失败: {e}"))?;
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("打开链接失败: {e}"))?;
+    }
+
+    Ok(())
+}
+
 /// 调试：导出前端 canvas 当前帧 + 状态机快照（config.debug_dump=true 时由前端定期调用）
 #[tauri::command]
 pub fn debug_dump(data_url: String) -> Result<String, String> {

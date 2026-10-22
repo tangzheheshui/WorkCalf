@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! 勤劳的牛牛 WorkCalf —— 佛系打工小牛桌面桌宠
-//! 纯单机：无网络请求、无登录、无更新检测。
+//! 纯单机：无登录、无账号；仅在用户主动提交反馈或检查更新时访问服务端。
 
 mod commands;
 mod config;
@@ -103,6 +103,7 @@ fn main() {
             commands::quit_app,
             commands::mac_permission_status,
             commands::open_mac_accessibility,
+            commands::open_url,
             commands::debug_dump,
             commands::debug_log,
         ])
