@@ -48,17 +48,17 @@ export class SoundKit {
       const t = ctx.currentTime;
       // 每次敲击随机微调音高，连续敲不显机械
       const k = 1 + (Math.random() - 0.5) * 0.08;
-      const f0 = 720 * k;
+      const f0 = 600 * k;
 
       // 攻击层：木槌碰到木头的「嗒」，短噪声过带通
       const click = ctx.createBufferSource();
       click.buffer = this.noise(ctx);
       const cf = ctx.createBiquadFilter();
       cf.type = 'bandpass';
-      cf.frequency.value = 2800 * k;
+      cf.frequency.value = 2400 * k;
       cf.Q.value = 0.8;
       const cg = ctx.createGain();
-      cg.gain.setValueAtTime(0.4, t);
+      cg.gain.setValueAtTime(0.45, t);
       cg.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
       click.connect(cf); cf.connect(cg); cg.connect(ctx.destination);
       click.start(t); click.stop(t + 0.02);
@@ -75,9 +75,9 @@ export class SoundKit {
         o.connect(g); g.connect(ctx.destination);
         o.start(t); o.stop(t + dur + 0.02);
       };
-      partial(f0, 0.5, 0.14);         // 基音
-      partial(f0 * 2.76, 0.12, 0.05); // 非谐泛音：木质感
-      partial(f0 * 0.5, 0.16, 0.2);   // 低八度共鸣：空腔感
+      partial(f0, 0.55, 0.18);        // 基音
+      partial(f0 * 2.2, 0.14, 0.07);  // 非谐泛音：木质感
+      partial(f0 * 0.5, 0.22, 0.25);  // 低八度共鸣：空腔感
     } catch { /* 静默 */ }
   }
 
