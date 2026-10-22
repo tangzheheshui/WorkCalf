@@ -27,7 +27,7 @@ pub struct AppConfig {
     pub usage_count: u64,
     /// 休息提醒开关：累计输入达到阈值时让小牛喊你歇会儿
     pub rest_reminder: bool,
-    /// 休息提醒间隔（键鼠累计次数），100 ~ 10000
+    /// 休息提醒间隔（键鼠累计次数），10 ~ 10000（10 供测试用）
     pub rest_interval: u64,
     /// 窗口位置（逻辑坐标），-1 表示默认右下角
     pub pos_x: i32,

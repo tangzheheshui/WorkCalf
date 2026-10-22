@@ -65,7 +65,7 @@ const REST_SHOW_MS = 8000;
 let usage = Number(cfg.usage_count) || 0;
 let usagePending = 0;
 let usageFlushTimer = 0;
-let restInterval = Math.max(100, Number(cfg.rest_interval) || 1000);
+let restInterval = Math.max(10, Number(cfg.rest_interval) || 1000);
 let restTier = Math.floor(usage / restInterval); // 已经提醒过的档位
 let rest = { text: '', at: 0, until: 0 };
 let lastRestLine = '';
@@ -187,7 +187,7 @@ await listen('pet://config', (e) => {
   applyOpacity();
   applyStyle(getModel(cfg.model_id).style);
   // 改间隔/开关后，按当前累计重新对齐档位，避免积压的提醒立刻弹出
-  restInterval = Math.max(100, Number(cfg.rest_interval) || 1000);
+  restInterval = Math.max(10, Number(cfg.rest_interval) || 1000);
   restTier = Math.floor(usage / restInterval);
 });
 await listen('pet://listener-error', (e) => console.warn('[勤劳的牛牛]', e.payload.message));
