@@ -157,6 +157,38 @@
       color: #7a6a58;
     }
 
+    /* ---- 模型选择 ---- */
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+      gap: 10px;
+    }
+    .model-card {
+      all: unset;
+      cursor: pointer;
+      border: 1.5px solid #e3d5c2;
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px 8px 10px;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .model-card:hover { border-color: #d2a58f; }
+    .model-card.active {
+      border-color: #b3543f;
+      background: #fdf3ef;
+      box-shadow: 0 1px 3px rgba(179, 84, 63, 0.15);
+    }
+    .model-card canvas {
+      display: block;
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 6px;
+    }
+    .model-card .mname { font-size: 13px; font-weight: 600; color: #4a3b2e; }
+    .model-card.active .mname { color: #a3472f; }
+    .model-card .mdesc { font-size: 11px; color: #a0907c; margin-top: 1px; }
+
     /* ---- 意见反馈 ---- */
     .field { margin-bottom: 14px; }
     .field label { display: block; font-size: 13px; color: #7a6a58; margin-bottom: 6px; }
@@ -342,10 +374,14 @@
       <!-- 模型 -->
       <section class="pane" id="pane-models">
         <div class="card">
-          <div class="kv"><span>当前模型</span><b>白牛牛</b></div>
+          <div class="model-grid" id="model-grid"></div>
+          <p class="hint">点击卡片即可切换，立即生效，不用重启。</p>
+        </div>
+        <div class="card">
+          <div class="kv"><span>当前模型</span><b id="cur-model">—</b></div>
           <div class="empty-box">
-            <b>更多模型还没上架</b>
-            上架后可以在这里一键切换，不用重新下载。
+            <b>更多模型还在路上</b>
+            Live2D 真实模型等，上架后同样在这里一键切换。
           </div>
         </div>
       </section>

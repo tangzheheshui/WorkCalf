@@ -54,9 +54,28 @@ cargo tauri build                            # 需 cargo install tauri-cli；签
 
 ## 角色模型
 
-目前只保留一套精修过的**白牛牛**（`classic`），设置面板不再提供模型切换。
-旧的多配色占位模型（棕牛/奶牛/黄牛/粉牛）已移除；`ui/models.js` 仍保留模型表结构，
-以后接入 Live2D 或新增精修模型时再扩展。
+- **白牛牛**（`classic`）：嚣张眯眼的打工老伙计，默认模型。
+
+模型是独立模块，可单独上架 / 下架，互不影响：
+
+```
+ui/
+  draw-kit.js          # 中立绘图原语（歪椭圆、描边、烟…），不含任何配色/物种
+  doodle.js            # 核心渲染器：身体、工位、姿态、特效；只认下面的角色接口
+  characters/
+    index.js           # 模型注册表（唯一需要改的地方）
+    cow.js             # 白牛牛：耳朵、五官、头像，全部自包含
+  models.js            # 由注册表生成模型列表，本身不用改
+```
+
+- **上架**：新增 `ui/characters/<id>.js`，导出 `id / name / desc / style / drawHead / drawPortrait`，
+  再在 `characters/index.js` 里 `import` 并加进 `CHARACTERS`。
+- **下架**：删掉 `characters/index.js` 里那一行和数组项（文件可保留）；配置里残留的
+  `model_id` 会自动回落到第一个模型。
+- 核心渲染器不认识任何具体物种：头长什么样、烟叼在哪，全部由角色模块返回的
+  `drawHead` 决定（返回 `{ smokeTip }` 供烟雾粒子定位）。
+- 设置面板 →「模型」点卡片即热切换，不用重启。
+- `tools/model-preview.html` 是开发用的模型预览页（浏览器打开即可看全部模型各状态的渲染效果）。
 
 ## 配置项（config.json）
 

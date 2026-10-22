@@ -1,4 +1,7 @@
 // 设置面板：左侧导航 + 右侧页面；修改偏好实时生效（invoke set_config）
+import { MODELS } from './models.js';
+import { drawPortrait } from './doodle.js';
+
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
@@ -80,6 +83,40 @@ els.opacity.oninput = () => {
 };
 els.ct.onchange = () => invoke('set_config', { patch: { click_through: els.ct.checked } });
 els.snd.onchange = () => invoke('set_config', { patch: { sound_enabled: els.snd.checked } });
+
+// ---------- 模型 ----------
+const modelGrid = document.getElementById('model-grid');
+const curModel = document.getElementById('cur-model');
+
+for (const m of MODELS) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'model-card';
+  card.dataset.id = m.id;
+  const cv = document.createElement('canvas');
+  drawPortrait(cv, m.style);
+  const name = document.createElement('div');
+  name.className = 'mname';
+  name.textContent = m.name;
+  const desc = document.createElement('div');
+  desc.className = 'mdesc';
+  desc.textContent = m.desc || '';
+  card.append(cv, name, desc);
+  card.onclick = () =>
+    invoke('set_config', { patch: { model_id: m.id } }).catch((e) => {
+      console.warn('[勤劳的牛牛] 切换模型失败', e);
+    });
+  modelGrid.appendChild(card);
+}
+
+function refreshModels(c) {
+  document
+    .querySelectorAll('.model-card')
+    .forEach((el) => el.classList.toggle('active', el.dataset.id === c.model_id));
+  const cur = MODELS.find((m) => m.id === c.model_id) || MODELS[0];
+  curModel.textContent = cur.name;
+}
+refreshModels(cfg);
 
 // ---------- 意见反馈 ----------
 let statusTimer = 0;
@@ -265,7 +302,10 @@ els.openSite.onclick = async () => {
 
 // ---------- 配置同步 ----------
 // 托盘/右键菜单改了音效等设置时同步回显
-await listen('pet://config', (e) => fill(e.payload));
+await listen('pet://config', (e) => {
+  fill(e.payload);
+  refreshModels(e.payload);
+});
 
 // macOS 辅助功能权限检测
 const ok = await invoke('mac_permission_status');

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>模型预览（开发用）</title>
+  <style>
+    body { font: 13px/1.5 "Microsoft YaHei", sans-serif; background: #e8e4dc; margin: 16px; }
+    h3 { margin: 4px 0 8px; }
+    .row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-start; flex-wrap: wrap; }
+    .cell { background: #fff; border-radius: 8px; padding: 6px; text-align: center; }
+    .cell canvas { display: block; }
+    .cap { font-size: 11px; color: #888; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="err" style="color:#c00;white-space:pre-wrap;font-size:12px"></div>
+  <script>
+    // 本页是“渲染一帧就截图”，不允许 ResizeObserver 事后触发 resize——
+    // 给 canvas.width 赋值即使值不变也会清空画布，会把画好的内容抹掉
+    window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+    // 无头截图时看不到控制台，把异常写到 DOM 里
+    window.addEventListener('error', (e) => {
+      document.getElementById('err').textContent +=
+        'ERR ' + e.message + ' @ ' + e.filename + ':' + e.lineno + '\n';
+    });
+  </script>
+  <script type="module">
+    // 开发用：把 MODELS 里每个模型的头像 + busy/daze/muyu 三个状态各渲染一帧，
+    // 供无头浏览器截图自查（--screenshot + --virtual-time-budget）。
+    import { DoodleRenderer, drawPortrait, applyStyle } from '../ui/doodle.js';
+    import { MODELS } from '../ui/models.js';
+
+    const SC = 320;
+    const KEYS = ['W', 'A', 'S', 'D', 'E', 'H', 'L', 'O', 'Ent', 'Sh'];
+    const STATES = ['busy', 'daze', 'muyu'];
+
+    const root = document.getElementById('root');
+    const scenes = [];
+
+    for (const m of MODELS) {
+      const wrap = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = m.name + '（' + m.id + '）';
+      wrap.appendChild(title);
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const pcell = document.createElement('div');
+      pcell.className = 'cell';
+      const pc = document.createElement('canvas');
+      drawPortrait(pc, m.style);
+      pc.style.width = '96px';
+      pc.style.height = '96px';
+      pcell.appendChild(pc);
+      const pcap = document.createElement('div');
+      pcap.className = 'cap';
+      pcap.textContent = '头像';
+      pcell.appendChild(pcap);
+      row.appendChild(pcell);
+
+      for (const st of STATES) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const cv = document.createElement('canvas');
+        cv.style.width = SC + 'px';
+        cv.style.height = SC + 'px';
+        cell.appendChild(cv);
+        const cap = document.createElement('div');
+        cap.className = 'cap';
+        cap.textContent = st;
+        cell.appendChild(cap);
+        row.appendChild(cell);
+        scenes.push({ renderer: new DoodleRenderer(cv), style: m.style, state: st });
+      }
+      wrap.appendChild(row);
+      root.appendChild(wrap);
+    }
+
+    // 渲染前先强制定义一次布局：DoodleRenderer 依赖 parentElement 的 clientWidth
+    document.body.offsetHeight;
+    for (const s of scenes) s.renderer.resize();
+    // 同步推进 150 帧（相当于 2.5 秒动画），让呼吸/手/烟雾都进入稳态
+    const params = (i, state) => {
+      const k = KEYS[Math.floor(i / 18) % KEYS.length];
+      const age = (i % 18) / 60;
+      return {
+        state,
+        intensity: 0.6,
+        headX: 0.3,
+        headY: 0.2,
+        mouseX: 0.25,
+        mouseY: 0.15,
+        clickAge: 99,
+        keyAge: state === 'busy' ? age : 99,
+        lastKey: k,
+        speed: 1,
+      };
+    };
+    try {
+      for (let i = 0; i < 150; i++) {
+        for (const s of scenes) {
+          applyStyle(s.style);
+          s.renderer.render(1 / 60, params(i, s.state));
+        }
+      }
+    } catch (e) {
+      document.getElementById('err').textContent += 'LOOP ERR ' + e.message + '\n';
+    }
+    // 诊断信息：确认循环真的跑了、画布尺寸非 0、像素是否真的画上了
+    document.getElementById('err').textContent +=
+      'scenes=' + scenes.length + ' ' +
+      scenes.map((s) => s.renderer.w + 'x' + s.renderer.h).join(' ') + ' | px:' +
+      scenes.map((s) => {
+        const c = s.renderer.canvas;
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        let n = 0;
+        for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+        return n;
+      }).join(',');
+    document.title = 'RENDERED';
+  </script>
+</body>
+</html>
