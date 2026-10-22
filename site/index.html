@@ -95,22 +95,30 @@
           <p class="os-note">便携版免安装，双击即用</p>
         </article>
 
-        <article class="os-card off">
+        <article class="os-card">
           <div class="os-head">
             <svg class="os-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.8c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.8-3.2.8-.7 0-1.7-.8-2.8-.8-1.4 0-2.8.8-3.5 2.1-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7 1.9-1 2.6-2.1c.8-1.2 1.2-2.4 1.2-2.4-.1 0-2.5-1-2.5-3.5z"/><path d="M14.3 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.5-1.2z"/></svg>
             <div class="os-t">
               <h3>macOS</h3>
-              <p>Apple Silicon / Intel</p>
+              <p>macOS 11+ · Apple Silicon / Intel</p>
             </div>
+            <span class="tag">新版</span>
           </div>
-          <button class="os-btn" disabled>Apple 芯片版</button>
-          <button class="os-btn" disabled>Intel 芯片版</button>
-          <p class="os-note">正在适配，暂未发布</p>
+          <a class="os-btn primary" data-download data-key="mac_arm64" href="download/WorkCalf-mac-arm64.dmg">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14"/></svg>
+            Apple 芯片版（M1–M4）
+          </a>
+          <a class="os-btn" data-download data-key="mac_x64" href="download/WorkCalf-mac-x64.dmg">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14"/></svg>
+            Intel 芯片版
+          </a>
+          <p class="os-note">未签名：首次打开请右键 →「打开」</p>
         </article>
       </div>
 
       <p class="note">
-        未做代码签名，Windows 可能提示「已保护你的电脑」，点「更多信息 → 仍要运行」即可。
+        未做代码签名：Windows 可能提示「已保护你的电脑」，点「更多信息 → 仍要运行」；
+        macOS 首次打开请右键 →「打开」，或执行 <code>xattr -dr com.apple.quarantine /Applications/WorkCalf.app</code>。
       </p>
     </section>
   </main>

@@ -11,14 +11,19 @@
 
 两个平台卡片，四个按钮：
 
-| 平台 | 按钮 | 产物 |
-| --- | --- | --- |
-| Windows | 64 位便携版（主推） | `download/WorkCalf.exe` |
-| Windows | 64 位安装版 | `download/WorkCalf-Setup.exe` |
-| macOS | Apple 芯片版 | 暂未发布，按钮置灰 |
-| macOS | Intel 芯片版 | 暂未发布，按钮置灰 |
+| 平台 | 按钮 | 产物 | 来源 |
+| --- | --- | --- | --- |
+| Windows | 64 位便携版（主推） | `download/WorkCalf.exe` | 本地 `tauri build` |
+| Windows | 64 位安装版 | `download/WorkCalf-Setup.exe` | 本地 `tauri build` |
+| macOS | Apple 芯片版 | `download/WorkCalf-mac-arm64.dmg` | GitHub Actions |
+| macOS | Intel 芯片版 | `download/WorkCalf-mac-x64.dmg` | GitHub Actions |
 
 文件名固定，`version.json` 里的地址就不用每次发版都改。
+
+macOS 包由 `.github/workflows/build-macos.yml` 构建：push `v*` tag 后会挂到 GitHub
+Release（`https://github.com/tangzheheshui/WorkCalf/releases`），下载两个 dmg 放进
+`site/download/` 并改成上面的固定文件名即可；`sync-site.sh` 检测到文件后会自动把
+`mac_arm64` / `mac_x64` 写进 `version.json`。
 
 ## 发版流程
 
@@ -35,7 +40,9 @@
      "url": "download/WorkCalf.exe",
      "urls": {
        "win_portable": "download/WorkCalf.exe",
-       "win_setup": "download/WorkCalf-Setup.exe"
+       "win_setup": "download/WorkCalf-Setup.exe",
+       "mac_arm64": "download/WorkCalf-mac-arm64.dmg",
+       "mac_x64": "download/WorkCalf-mac-x64.dmg"
      },
      "notes": "这一版改了什么"
    }

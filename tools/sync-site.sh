@@ -40,14 +40,26 @@ fi
 VERSION="$(grep -m1 '"version"' src-tauri/tauri.conf.json \
   | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
 
+# macOS 包由 GitHub Actions 产出，下载到 site/download/ 后随站点一起上传；
+# 没有就不写进 version.json，站点按钮保持隐藏/置灰
+URLS="    \"win_portable\": \"download/WorkCalf.exe\",
+    \"win_setup\": \"download/WorkCalf-Setup.exe\""
+if [ -f site/download/WorkCalf-mac-arm64.dmg ]; then
+  URLS="$URLS,
+    \"mac_arm64\": \"download/WorkCalf-mac-arm64.dmg\""
+fi
+if [ -f site/download/WorkCalf-mac-x64.dmg ]; then
+  URLS="$URLS,
+    \"mac_x64\": \"download/WorkCalf-mac-x64.dmg\""
+fi
+
 cat > site/version.json <<JSON
 {
   "version": "$VERSION",
   "updated": "$(date +%Y-%m-%d)",
   "url": "download/WorkCalf.exe",
   "urls": {
-    "win_portable": "download/WorkCalf.exe",
-    "win_setup": "download/WorkCalf-Setup.exe"
+$URLS
   },
   "notes": ""
 }

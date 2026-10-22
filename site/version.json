@@ -4,7 +4,9 @@
   "url": "download/WorkCalf.exe",
   "urls": {
     "win_portable": "download/WorkCalf.exe",
-    "win_setup": "download/WorkCalf-Setup.exe"
+    "win_setup": "download/WorkCalf-Setup.exe",
+    "mac_arm64": "download/WorkCalf-mac-arm64.dmg",
+    "mac_x64": "download/WorkCalf-mac-x64.dmg"
   },
   "notes": ""
 }

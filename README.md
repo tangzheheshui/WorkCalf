@@ -151,7 +151,8 @@ Windows 上没法构建 macOS 产物（需要 Xcode 工具链、codesign、hdiut
 - 在 Actions 页手动 Run workflow，或 push 一个 `v*` tag；
 - 在 Apple Silicon runner 上分别交叉编译 `aarch64-apple-darwin`（M 芯片）和
   `x86_64-apple-darwin`（Intel），各产出一个 dmg；
-- 构建完成后到该次 run 的 **Artifacts** 下载（`WorkCalf-macos-arm64`、`WorkCalf-macos-x86_64`）。
+- tag 触发时两个 dmg 会自动挂到该 tag 的 **GitHub Release**（公开可下载）；
+  手动触发的构建则到该次 run 的 **Artifacts** 里取（需登录）。
 
 未签名的包首次打开会被 Gatekeeper 拦下：右键 →「打开」，或在终端执行
 `xattr -dr com.apple.quarantine /Applications/WorkCalf.app`。要免这一步需要
