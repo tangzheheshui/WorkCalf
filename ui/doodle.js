@@ -2,9 +2,19 @@
 // 参考「趴工位」梗图：视角能看到键鼠，按键会在键盘上实时高亮。
 // 接口与 placeholder.js 相同：render(dt, params) + hitTest(x, y)
 //   params: { state, intensity, headX, headY, clickAge, keyAge, lastKey, speed, onKnock }
+//
+// 本文件只负责身体、工位、姿态和特效，不认识任何具体物种：
+// 头部长什么样由 style.character 指向的角色模块（characters/*.js）决定。
 
-const TAU = Math.PI * 2;
-const lerp = (a, b, t) => a + (b - a) * t;
+import * as kit from './draw-kit.js';
+import { getCharacter } from './characters/index.js';
+
+const { TAU, lerp, blobPath, rrectPath } = kit;
+
+// 本地薄包装：把当前配色里的描边/身体色补上，调用处保持简洁
+const fillInk = (ctx, fill, lw) => kit.fillInk(ctx, fill, lw, C.ink);
+const blob = (ctx, x, y, rx, ry, rot, seed, fill, lw) => kit.blob(ctx, x, y, rx, ry, rot, seed, fill, lw, C.ink);
+const inkTube = (ctx, draw, width, lw) => kit.inkTube(ctx, draw, width, lw, C.ink, C.body);
 
 /** 敲木鱼一拍的抬锤曲线：抬起 → 顶端停顿 → 快速砸下 → 休息 */
 function muyuLift(p) {
@@ -200,80 +210,7 @@ function keyWorld(label, w, h) {
   return null;
 }
 
-// ---------- 手绘感基础图形 ----------
-
-/** 带固定种子抖动的闭合椭圆路径：同一形状每帧歪法一致，不会“沸腾” */
-function blobPath(ctx, x, y, rx, ry, rot, seed) {
-  const n = 26;
-  ctx.beginPath();
-  for (let i = 0; i <= n; i++) {
-    const a = (i / n) * TAU;
-    const k = 1 + Math.sin(a * 3 + seed) * 0.02 + Math.sin(a * 5 + seed * 1.7) * 0.013;
-    const px = Math.cos(a) * rx * k;
-    const py = Math.sin(a) * ry * k;
-    const X = x + px * Math.cos(rot) - py * Math.sin(rot);
-    const Y = y + px * Math.sin(rot) + py * Math.cos(rot);
-    if (i === 0) ctx.moveTo(X, Y);
-    else ctx.lineTo(X, Y);
-  }
-  ctx.closePath();
-}
-
-function fillInk(ctx, fill, lw) {
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.strokeStyle = C.ink;
-  ctx.lineWidth = lw;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.stroke();
-}
-
-function blob(ctx, x, y, rx, ry, rot, seed, fill, lw) {
-  blobPath(ctx, x, y, rx, ry, rot, seed);
-  fillInk(ctx, fill, lw);
-}
-
-/** 粗白线 + 黑描边的“管子”（手臂/尾巴） */
-function inkTube(ctx, draw, width, lw) {
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = C.ink;
-  ctx.lineWidth = width + lw * 2;
-  draw();
-  ctx.stroke();
-  ctx.strokeStyle = C.body;
-  ctx.lineWidth = width;
-  draw();
-  ctx.stroke();
-}
-
-function ear(ctx, x, y, s, rot) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rot);
-  ctx.beginPath();
-  ctx.moveTo(-s * 0.55, s * 0.5);
-  ctx.quadraticCurveTo(-s * 0.5, -s * 0.95, s * 0.5, -s * 0.6);
-  ctx.quadraticCurveTo(s * 0.25, s * 0.05, s * 0.55, s * 0.5);
-  ctx.closePath();
-  fillInk(ctx, C.body, s * 0.22);
-  ctx.restore();
-}
-
-/** 牛耳朵：从脑袋两侧耷拉出来的长耳朵，根部被头挡住 */
-function cowEar(ctx, x, y, rx, ry, rot, side, seed, lw) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rot);
-  blobPath(ctx, 0, 0, rx, ry, 0, seed);
-  fillInk(ctx, C.body, lw);
-  // 内耳：朝耳朵外侧偏一点
-  blobPath(ctx, side * rx * 0.18, 0, rx * 0.36, ry * 0.36, 0, seed + 1.7);
-  ctx.fillStyle = '#e5e0d4';
-  ctx.fill();
-  ctx.restore();
-}
+// ---------- 身体零件（基础图形见 draw-kit.js） ----------
 
 function mitten(ctx, x, y, r, rot, lw, resting = false) {
   ctx.save();
@@ -314,11 +251,6 @@ function mitten(ctx, x, y, r, rot, lw, resting = false) {
     }
   }
   ctx.restore();
-}
-
-function rrectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
 }
 
 export class DoodleRenderer {
@@ -911,6 +843,7 @@ export class DoodleRenderer {
   }
 
   // ---------- 头部 / 脸 ----------
+  // 头摆在哪儿、多大由身体姿态决定；头长什么样完全交给角色模块（characters/*.js）。
   drawHead(ctx, w, h, u, t, p, muyu, daze, breathe) {
     const hx = w * 0.44 + p.headX * w * 0.012;
     // 敲木鱼时头略微低下来看木鱼，但不能压住手腕，否则胳膊全被脸挡住
@@ -923,182 +856,17 @@ export class DoodleRenderer {
     ctx.translate(hx, hy);
     ctx.rotate(rot);
 
-    // 牛耳朵：两侧向外耷拉（先画，根部藏在脑袋后面）
-    cowEar(ctx, -w * 0.196, -h * 0.108, w * 0.060, h * 0.033, -0.35, -1, 2.9, 3.6 * u);
-    cowEar(ctx, w * 0.196, -h * 0.108, w * 0.060, h * 0.033, 0.35, 1, 6.3, 3.6 * u);
-
-    // 头
-    blobPath(ctx, 0, 0, rx, ry, 0, 1.7);
-    fillInk(ctx, C.body, 4.4 * u);
-
-    // 奶牛斑
-    if (C.patch) {
-      ctx.save();
-      blobPath(ctx, 0, 0, rx, ry, 0, 1.7);
-      ctx.clip();
-      blobPath(ctx, w * 0.17, h * 0.04, w * 0.085, h * 0.07, 0.4, 8.4);
-      ctx.fillStyle = '#1c1c1c';
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // 眼睛
-    const eyeX = w * 0.083;
-    const eyeY = -h * 0.048;
-    const gazeX = p.headX * w * 0.016;
-    const gazeY = p.headY * h * 0.011;
-
-    // 敲木鱼时偶尔偷瞄：身体保持原样，只是眼睛睁开一点、眼珠滑向一侧
+    // 偷瞄节拍由核心算好再传给角色：角色只管怎么画
     const glance = muyu ? muyuGlance(t) : 0;
     const glanceSide = muyu ? muyuGlanceSide(t) : 0;
 
-    if (muyu && glance > 0.02) {
-      // 眯眼偷瞄：眼睛拉长、压扁、上挑成一条缝（不能圆），眼珠顶到眼角
-      const ryEye = h * (0.006 + 0.009 * glance);
-      const gx = glanceSide * w * 0.031 * glance;
-      const gy = -h * 0.0015 * glance;
-      for (const sx of [-1, 1]) {
-        blobPath(ctx, sx * eyeX, eyeY, w * 0.048, ryEye, sx * 0.22, sx < 0 ? 3.4 : 5.1);
-        ctx.fillStyle = C.ink;
-        ctx.fill();
-        // 眼珠偏向一侧：偷瞄
-        ctx.beginPath();
-        ctx.arc(sx * eyeX + gx, eyeY + gy, w * 0.010, 0, TAU);
-        ctx.fillStyle = C.body;
-        ctx.fill();
-      }
-    } else if (muyu) {
-      // 闭眼：两道上弧
-      ctx.strokeStyle = C.ink;
-      ctx.lineWidth = 3.4 * u;
-      ctx.lineCap = 'round';
-      for (const sx of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo(sx * eyeX - w * 0.032, eyeY);
-        ctx.quadraticCurveTo(sx * eyeX, eyeY + h * 0.028, sx * eyeX + w * 0.032, eyeY);
-        ctx.stroke();
-      }
-    } else {
-      // 眼睛压扁一点、外眼角上挑：嚣张的眯眼
-      const ryEye = daze ? h * 0.011 : h * 0.026;
-      for (const sx of [-1, 1]) {
-        blobPath(ctx, sx * eyeX, eyeY, w * 0.034, ryEye, sx * 0.12, sx < 0 ? 3.4 : 5.1);
-        ctx.fillStyle = C.ink;
-        ctx.fill();
-        // 眼珠：跟着鼠标走 → 斜视
-        ctx.beginPath();
-        ctx.arc(
-          sx * eyeX + gazeX,
-          eyeY + gazeY - (daze ? h * 0.001 : 0),
-          w * 0.0105,
-          0,
-          TAU,
-        );
-        ctx.fillStyle = C.body;
-        ctx.fill();
-      }
-      if (daze) {
-        // 上眼皮
-        ctx.strokeStyle = C.ink;
-        ctx.lineWidth = 3 * u;
-        ctx.lineCap = 'round';
-        for (const sx of [-1, 1]) {
-          ctx.beginPath();
-          ctx.moveTo(sx * eyeX - w * 0.034, eyeY - h * 0.008);
-          ctx.lineTo(sx * eyeX + w * 0.034, eyeY - h * 0.008);
-          ctx.stroke();
-        }
-      }
-    }
+    const { smokeTip } = getCharacter(C.character).drawHead({
+      ctx, w, h, u, t, p, rx, ry, muyu, daze, breathe, glance, glanceSide, C,
+    }) || {};
 
-    // 眉毛：
-    // 打字时保持原来的“八”字怒眉 + 眉心竖纹；
-    // 趴着敲木鱼时眉毛放平放松；偷瞄时挑眉（瞄向哪边，哪边挑得更高）
-    {
-      const browY = eyeY - h * 0.050;
-      ctx.strokeStyle = C.ink;
-      ctx.lineWidth = 4.0 * u;
-      ctx.lineCap = 'round';
-      for (const sx of [-1, 1]) {
-        let oy;
-        let cy;
-        let iy;
-        if (!muyu) {
-          oy = browY - h * 0.008;
-          cy = browY + h * 0.002;
-          iy = browY + h * 0.016;
-        } else {
-          // 偷瞄时一边挑眉挑得很高、一边微微压下：看起来更像在打小算盘
-          const side = sx === glanceSide;
-          oy = lerp(browY + h * 0.003, browY + (side ? -h * 0.028 : h * 0.006), glance);
-          cy = lerp(browY + h * 0.002, browY + (side ? -h * 0.033 : h * 0.007), glance);
-          iy = lerp(browY + h * 0.001, browY + (side ? -h * 0.020 : h * 0.010), glance);
-        }
-        ctx.beginPath();
-        ctx.moveTo(sx * w * 0.123, oy);
-        ctx.quadraticCurveTo(sx * w * 0.075, cy, sx * w * 0.030, iy);
-        ctx.stroke();
-      }
-      // 眉心的竖纹只在打字/工作时保留
-      if (!muyu) {
-        ctx.lineWidth = 2.4 * u;
-        ctx.beginPath();
-        ctx.moveTo(0, browY + h * 0.006);
-        ctx.quadraticCurveTo(w * 0.002, browY + h * 0.014, 0, browY + h * 0.024);
-        ctx.stroke();
-      }
-    }
-
-    // 口鼻：浅色的牛鼻底 + 两个鼻孔，让它一眼像牛
-    // （长在脸下半部，不压眼睛）
-    blobPath(ctx, 0, h * 0.068, w * 0.102, h * 0.047, 0, 7.7);
-    ctx.fillStyle = '#f2efe7';
-    ctx.fill();
-    for (const sx of [-1, 1]) {
-      blobPath(ctx, sx * w * 0.019, h * 0.061, w * 0.0068, h * 0.0042, sx * 0.35, sx < 0 ? 2.2 : 4.4);
-      ctx.fillStyle = C.ink;
-      ctx.fill();
-    }
-
-    // 嘴：抿成一条线，下巴微微抬着——嚣张；偷瞄时嘴角向瞄的那边轻轻一挑
-    ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 2.8 * u;
-    ctx.lineCap = 'round';
-    const my = h * 0.125;
-    ctx.beginPath();
-    if (muyu && glance > 0.02) {
-      const smirk = h * 0.008 * glance;
-      ctx.moveTo(-w * 0.031, my + h * 0.002 - (glanceSide < 0 ? smirk : 0));
-      ctx.quadraticCurveTo(0, my + h * 0.001, w * 0.031, my - h * 0.002 - (glanceSide > 0 ? smirk : 0));
-    } else {
-      ctx.moveTo(-w * 0.031, my + h * 0.002);
-      ctx.lineTo(w * 0.031, my - h * 0.002);
-    }
-    ctx.stroke();
-
-    // 烟
-    if (muyu || daze) {
-      const cgx = w * 0.095;
-      const cgy = h * 0.082;
-      ctx.save();
-      ctx.translate(cgx, cgy);
-      ctx.rotate(-0.12);
-      rrectPath(ctx, 0, -h * 0.006, w * 0.105, h * 0.012, 2 * u);
-      ctx.fillStyle = '#f4f2ec';
-      ctx.fill();
-      ctx.strokeStyle = C.ink;
-      ctx.lineWidth = 1.8 * u;
-      ctx.stroke();
-      // 烟头
-      ctx.beginPath();
-      ctx.arc(w * 0.105, 0, w * 0.009, 0, TAU);
-      ctx.fillStyle = '#ff9b3d';
-      ctx.fill();
-      ctx.restore();
-
-      // 记录烟头世界坐标（供烟雾粒子发射）
-      const lx = w * 0.095 + Math.cos(-0.12) * w * 0.105;
-      const ly = h * 0.082 + Math.sin(-0.12) * w * 0.105;
+    // 烟头局部坐标 → 世界坐标（供烟雾粒子发射）
+    if (smokeTip) {
+      const { x: lx, y: ly } = smokeTip;
       this.smokeTip = {
         x: hx + lx * Math.cos(rot) - ly * Math.sin(rot),
         y: hy + lx * Math.sin(rot) + ly * Math.cos(rot),
@@ -1143,4 +911,28 @@ export class DoodleRenderer {
       ctx.fill();
     }
   }
+}
+
+// ---------- 模型头像（设置面板的预览卡片用） ----------
+// 只负责画布尺寸/缩放，头像本身由角色模块画。
+export function drawPortrait(canvas, style) {
+  const st = { ...DEFAULT_STYLE, ...(style || {}) };
+  const dpr = window.devicePixelRatio || 1;
+  const S = 96;
+  canvas.width = S * dpr;
+  canvas.height = S * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const keep = C;
+  C = st;
+  getCharacter(st.character).drawPortrait({
+    ctx,
+    cx: S * 0.5,
+    cy: S * 0.55,
+    S,
+    u: S / 96,
+    C: st,
+  });
+  C = keep;
 }
