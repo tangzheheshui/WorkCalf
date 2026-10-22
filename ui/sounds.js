@@ -67,6 +67,38 @@ export class SoundKit {
     } catch { /* 静默 */ }
   }
 
+  /** 休息提醒：两声清脆的“叮咚”，和打字/木鱼声明显区分 */
+  restAlert() {
+    if (!this.isEnabled()) return;
+    try {
+      const ctx = this.ensure();
+      const t0 = ctx.currentTime;
+      const note = (freq, at, dur, vol) => {
+        const o = ctx.createOscillator();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(freq, at);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+        // 轻微泛音，听起来像小铃铛而不是纯电子音
+        const o2 = ctx.createOscillator();
+        o2.type = 'sine';
+        o2.frequency.setValueAtTime(freq * 2, at);
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.0001, at);
+        g2.gain.exponentialRampToValueAtTime(vol * 0.25, at + 0.01);
+        g2.gain.exponentialRampToValueAtTime(0.0001, at + dur * 0.7);
+        o.connect(g); g.connect(ctx.destination);
+        o2.connect(g2); g2.connect(ctx.destination);
+        o.start(at); o.stop(at + dur + 0.02);
+        o2.start(at); o2.stop(at + dur + 0.02);
+      };
+      note(988, t0, 0.5, 0.28);
+      note(740, t0 + 0.16, 0.7, 0.24);
+    } catch { /* 静默 */ }
+  }
+
   noise(ctx) {
     if (!this.noiseBuf) {
       const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);

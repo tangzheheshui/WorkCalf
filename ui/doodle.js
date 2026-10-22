@@ -400,6 +400,97 @@ export class DoodleRenderer {
     if (smoking) this.drawSmoke(ctx, w, h, u, dt);
 
     ctx.restore();
+
+    // 休息提醒气泡：画在场景旋转之外，文字保持水平
+    if (p.restText) this.drawRestBubble(ctx, w, h, u, p.restText, p.restAge || 0, p.restDur || 6);
+  }
+
+  // ---------- 休息提醒气泡 ----------
+  // 手绘纸片 + 朝下的小尾巴，淡入淡出；宽度不够时按字符换行（中英文都适用）
+  drawRestBubble(ctx, w, h, u, text, age, dur) {
+    const pad = 9 * u;
+    const lh = 19 * u;
+    const font = `600 ${13 * u}px "Microsoft YaHei", "PingFang SC", system-ui, sans-serif`;
+    ctx.save();
+    ctx.font = font;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+
+    const maxW = w * 0.82;
+    // 标点不放行首：放不下时让它跟着上一行走
+    const NO_LINE_START = '，。、！？；：…—）」』》〉】,.;:!?)]}%';
+    const lines = [];
+    let cur = '';
+    for (const ch of text) {
+      const next = cur + ch;
+      if (cur && ctx.measureText(next).width > maxW - pad * 2) {
+        if (NO_LINE_START.includes(ch)) {
+          cur = next;
+        } else {
+          lines.push(cur);
+          cur = ch;
+        }
+      } else {
+        cur = next;
+      }
+    }
+    if (cur) lines.push(cur);
+
+    const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const bw = Math.min(w * 0.92, textW + pad * 2);
+    const bh = lines.length * lh + pad * 2 - 2 * u;
+    const bx = (w - bw) / 2;
+    const by = h * 0.035;
+
+    // 弹出（带回弹）+ 淡入淡出 + 轻微上浮，保证一眼能注意到
+    const pop = Math.min(1, age / 0.24);
+    const back = 1 + 2.4 * Math.pow(pop - 1, 3) + 1.4 * Math.pow(pop - 1, 2);
+    const scale = 0.82 + 0.18 * back;
+    const ccx = w / 2;
+    const ccy = by + bh / 2;
+    ctx.translate(ccx, ccy);
+    ctx.scale(scale, scale);
+    ctx.translate(-ccx, -ccy);
+
+    const alpha = Math.min(1, age / 0.18, Math.max(0, (dur - age) / 0.5));
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.translate(0, (1 - Math.min(1, age / 0.18)) * 7 * u);
+
+    // 暖色纸片 + 强调色描边 + 投影：从透明桌面上跳出来
+    ctx.shadowColor = 'rgba(120, 50, 20, 0.30)';
+    ctx.shadowBlur = 12 * u;
+    ctx.shadowOffsetY = 4 * u;
+    rrectPath(ctx, bx, by, bw, bh, 9 * u);
+    ctx.fillStyle = '#fff5e6';
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#b3543f';
+    ctx.lineWidth = 2.6 * u;
+    ctx.stroke();
+
+    // 小尾巴：朝下指着小牛（他坐在画面中偏左）
+    const tx = bx + bw * 0.34;
+    ctx.beginPath();
+    ctx.moveTo(tx - 7 * u, by + bh - 1);
+    ctx.lineTo(tx + 1 * u, by + bh + 11 * u);
+    ctx.lineTo(tx + 10 * u, by + bh - 1);
+    ctx.closePath();
+    ctx.fillStyle = '#fff5e6';
+    ctx.fill();
+    ctx.strokeStyle = '#b3543f';
+    ctx.stroke();
+    // 盖掉尾巴压住的纸片底边
+    ctx.beginPath();
+    ctx.moveTo(tx - 6 * u, by + bh - 1.5 * u);
+    ctx.lineTo(tx + 9 * u, by + bh - 1.5 * u);
+    ctx.strokeStyle = '#fff5e6';
+    ctx.lineWidth = 2.6 * u;
+    ctx.stroke();
+
+    // 文案
+    ctx.fillStyle = '#3d2318';
+    lines.forEach((line, i) => ctx.fillText(line, bx + pad, by + pad + i * lh));
+    ctx.restore();
   }
 
   // ---------- 身体 ----------

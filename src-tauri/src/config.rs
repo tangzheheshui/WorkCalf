@@ -23,6 +23,12 @@ pub struct AppConfig {
     pub sound_enabled: bool,
     /// 当前角色模型 id（见 ui/models.js）
     pub model_id: String,
+    /// 键鼠累计输入次数（键盘按键 + 鼠标左键点击）——休息提醒用
+    pub usage_count: u64,
+    /// 休息提醒开关：累计输入达到阈值时让小牛喊你歇会儿
+    pub rest_reminder: bool,
+    /// 休息提醒间隔（键鼠累计次数），100 ~ 10000
+    pub rest_interval: u64,
     /// 窗口位置（逻辑坐标），-1 表示默认右下角
     pub pos_x: i32,
     pub pos_y: i32,
@@ -40,6 +46,9 @@ impl Default for AppConfig {
             click_through: false,
             sound_enabled: true,
             model_id: "classic".into(),
+            usage_count: 0,
+            rest_reminder: true,
+            rest_interval: 1000,
             pos_x: -1,
             pos_y: -1,
             debug_dump: false,

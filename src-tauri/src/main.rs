@@ -103,6 +103,8 @@ fn main() {
             commands::get_config,
             commands::set_config,
             commands::toggle_sound,
+            commands::add_usage,
+            commands::nudge_window,
             commands::open_settings,
             commands::reset_position,
             commands::quit_app,

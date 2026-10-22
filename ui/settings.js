@@ -16,6 +16,7 @@ const els = {
   opacityV: $('opacity-v'),
   ct: $('ct'),
   snd: $('snd'),
+  rest: $('rest'),
   fbContact: $('fb-contact'),
   fbMessage: $('fb-message'),
   fbSubmit: $('fb-submit'),
@@ -70,6 +71,16 @@ function fill(c) {
   els.opacityV.textContent = Number(c.opacity).toFixed(2);
   els.ct.checked = c.click_through;
   els.snd.checked = c.sound_enabled;
+  if (c.rest_reminder === false) {
+    els.rest.value = 'off';
+  } else {
+    const v = String(c.rest_interval ?? 1000);
+    // 配置里可能有选项之外的自定义值：补一个选项再选中
+    if (![...els.rest.options].some((o) => o.value === v)) {
+      els.rest.add(new Option(`每 ${v} 次`, v));
+    }
+    els.rest.value = v;
+  }
 }
 fill(cfg);
 
@@ -83,6 +94,15 @@ els.opacity.oninput = () => {
 };
 els.ct.onchange = () => invoke('set_config', { patch: { click_through: els.ct.checked } });
 els.snd.onchange = () => invoke('set_config', { patch: { sound_enabled: els.snd.checked } });
+els.rest.onchange = () => {
+  if (els.rest.value === 'off') {
+    invoke('set_config', { patch: { rest_reminder: false } });
+  } else {
+    invoke('set_config', {
+      patch: { rest_reminder: true, rest_interval: Number(els.rest.value) },
+    });
+  }
+};
 
 // ---------- 模型 ----------
 const modelGrid = document.getElementById('model-grid');

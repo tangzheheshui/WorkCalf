@@ -135,6 +135,15 @@ pub fn set_config(app: AppHandle, patch: Value) -> Result<AppConfig, String> {
             cfg.model_id = v.to_string();
         }
     }
+    if let Some(v) = patch.get("usage_count").and_then(Value::as_u64) {
+        cfg.usage_count = v;
+    }
+    if let Some(v) = patch.get("rest_reminder").and_then(Value::as_bool) {
+        cfg.rest_reminder = v;
+    }
+    if let Some(v) = patch.get("rest_interval").and_then(Value::as_u64) {
+        cfg.rest_interval = v.clamp(100, 10_000);
+    }
 
     let path = st.cfg_path.clone();
     cfg.save(&path).map_err(|e| e.to_string())?;
@@ -148,6 +157,45 @@ pub fn set_config(app: AppHandle, patch: Value) -> Result<AppConfig, String> {
     let _ = app.emit_to("main", "pet://config", payload.clone());
     let _ = app.emit_to("settings", "pet://config", payload);
     Ok(cfg)
+}
+
+/// 休息提醒：让桌宠窗口左右轻戳几下再回原位。
+/// 只动自己的小窗口，不抢焦点、不碰用户的其他窗口。
+static NUDGING: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+pub fn nudge_window(app: AppHandle) {
+    if NUDGING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let Some(win) = main_window(&app) else {
+        NUDGING.store(false, Ordering::SeqCst);
+        return;
+    };
+    std::thread::spawn(move || {
+        if let Ok(base) = win.outer_position() {
+            for i in 0..6 {
+                let dx = if i % 2 == 0 { 5 } else { -5 };
+                let _ = win.set_position(tauri::PhysicalPosition::new(base.x + dx, base.y));
+                std::thread::sleep(std::time::Duration::from_millis(45));
+            }
+            let _ = win.set_position(base);
+        }
+        NUDGING.store(false, Ordering::SeqCst);
+    });
+}
+
+/// 键鼠计数：前端每几秒把增量刷进来，这里只累加并落盘。
+/// 不走 set_config（那边会重建窗口/广播配置），避免高频调用带来的抖动。
+#[tauri::command]
+pub fn add_usage(app: AppHandle, delta: u64) -> Result<u64, String> {
+    let st = app.state::<AppState>();
+    let path = st.cfg_path.clone();
+    let mut cfg = st.cfg.lock().unwrap();
+    cfg.usage_count = cfg.usage_count.saturating_add(delta);
+    let total = cfg.usage_count;
+    cfg.save(&path).map_err(|e| e.to_string())?;
+    Ok(total)
 }
 
 #[tauri::command]

@@ -32,6 +32,83 @@ let lastKeyAt = -1e9;
 let mouseMove = { x: 0, y: 0 };
 let lastMouseAt = -1e9;
 let scaleReq = cfg.scale; // 滚轮缩放用：记录已经请求到的比例，避免连续滚动丢步
+
+// ---------- 休息提醒 ----------
+// 键盘按键 + 鼠标左键都算一次输入；累计到 rest_interval 就提醒一次。
+// 计数由 Rust 侧落盘到 config.json（add_usage），重启不丢。
+// 提示里不出现次数：只调侃，不报数。
+const REST_LINES = [
+  [
+    '喝口水吧，键盘又不会跑。',
+    '生产队的驴都没你这么拼。',
+    '手不酸吗？我看着都酸。',
+    '起来走两步，椅子也想换个姿势。',
+    '歇会儿，屏幕不会长腿跑掉。',
+  ],
+  [
+    '老板又不会因为你多敲两下就多看你一眼。',
+    '你这么拼，工资也没见多一位数吧。',
+    '键盘快被你敲出工伤了。',
+    '再坐下去，脖子要先提离职。',
+    '牛都看不下去了，何况你是个人。',
+  ],
+  [
+    '你这不是努力，是习惯性不把自己当人。',
+    '拼和玩命，中间就差你这一下。',
+    '工位不会跑，命会。',
+    '屏幕不心疼你，我心疼。起来。',
+    '再这样，我明天跳槽去别人的桌面。',
+  ],
+];
+const REST_SHOW_MS = 8000;
+
+let usage = Number(cfg.usage_count) || 0;
+let usagePending = 0;
+let usageFlushTimer = 0;
+let restInterval = Math.max(100, Number(cfg.rest_interval) || 1000);
+let restTier = Math.floor(usage / restInterval); // 已经提醒过的档位
+let rest = { text: '', at: 0, until: 0 };
+let lastRestLine = '';
+
+function flushUsage() {
+  usageFlushTimer = 0;
+  if (!usagePending || !window.__TAURI__) return;
+  const delta = usagePending;
+  usagePending = 0;
+  invoke('add_usage', { delta }).catch((e) => {
+    usagePending += delta; // 失败下次再一起刷
+    console.warn('[勤劳的牛牛] 计数落盘失败', e);
+  });
+}
+
+function countUsage() {
+  usage += 1;
+  usagePending += 1;
+  if (!usageFlushTimer) usageFlushTimer = setTimeout(flushUsage, 3000);
+  if (!cfg.rest_reminder) return;
+  const tier = Math.floor(usage / restInterval);
+  if (tier > restTier) {
+    restTier = tier;
+    showRest();
+  }
+}
+
+function pickRestLine() {
+  // 提醒次数越多，文案越损；同一档里随机，且不连着重复上一句
+  const tier = Math.min(REST_LINES.length - 1, Math.floor(Math.max(0, restTier - 1) / 4));
+  const pool = REST_LINES[tier].filter((s) => s !== lastRestLine);
+  const line = pool[Math.floor(Math.random() * pool.length)] || REST_LINES[tier][0];
+  lastRestLine = line;
+  return line;
+}
+
+function showRest() {
+  rest.text = pickRestLine();
+  rest.at = performance.now();
+  rest.until = rest.at + REST_SHOW_MS;
+  sound.restAlert(); // 与打字声明显不同的两声提示
+  invoke('nudge_window').catch(() => {}); // 小窗口左右戳几下，保证能注意到
+}
 const applyOpacity = () => {
   canvas.style.opacity = String(cfg.opacity ?? 1);
 };
@@ -86,8 +163,12 @@ await listen('pet://key', (e) => {
     lastKeyAt = performance.now();
   }
   sound.typing();
+  countUsage();
 });
-await listen('pet://click', () => { clickAt = performance.now(); });
+await listen('pet://click', () => {
+  clickAt = performance.now();
+  countUsage();
+});
 await listen('pet://mouse', (e) => {
   const { rx, ry, dx, dy } = e.payload || {};
   head.tx = rx || 0;
@@ -105,6 +186,9 @@ await listen('pet://config', (e) => {
   scaleReq = cfg.scale;
   applyOpacity();
   applyStyle(getModel(cfg.model_id).style);
+  // 改间隔/开关后，按当前累计重新对齐档位，避免积压的提醒立刻弹出
+  restInterval = Math.max(100, Number(cfg.rest_interval) || 1000);
+  restTier = Math.floor(usage / restInterval);
 });
 await listen('pet://listener-error', (e) => console.warn('[勤劳的牛牛]', e.payload.message));
 
@@ -124,6 +208,11 @@ if (cfg.debug_dump) {
     }
   }, 3000);
 }
+
+// 左键点一下小牛/气泡：提前收起休息提醒（点击穿透时靠 6 秒自动收起）
+stage.addEventListener('mousedown', (e) => {
+  if (e.button === 0) rest.until = 0;
+});
 
 // ---------- 右键菜单 ----------
 stage.addEventListener('contextmenu', (e) => {
@@ -190,12 +279,19 @@ function frame(now) {
     mouseMove.y += (0 - mouseMove.y) * back;
   }
 
+  // 休息提醒期间：停下手里的活，坐回去敲木鱼，头顶冒气泡
+  const restActive = now < rest.until;
+  const shownState = restActive ? 'muyu' : state;
+
   // 性能：忙碌态 60fps，发呆/木鱼态降到 ~30fps
-  const busy = state === 'busy';
+  const busy = shownState === 'busy';
   if (busy || now - lastDraw >= 33) {
     lastDraw = now;
     renderer.render(dt, {
-      state,
+      state: shownState,
+      restText: restActive ? rest.text : null,
+      restAge: restActive ? (now - rest.at) / 1000 : 0,
+      restDur: REST_SHOW_MS / 1000,
       intensity,
       headX: head.x,
       headY: head.y,

@@ -99,6 +99,18 @@
     .row-head label { font-size: 13px; color: #7a6a58; }
     .val { font-size: 12px; color: #b3543f; font-weight: 600; }
     input[type="range"] { width: 100%; accent-color: #b3543f; }
+    .sel {
+      width: 100%;
+      font: 13px "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      color: #4a3b2e;
+      background: #fff;
+      border: 1px solid #e3d5c2;
+      border-radius: 8px;
+      padding: 7px 9px;
+      outline: none;
+      cursor: pointer;
+    }
+    .sel:focus { border-color: #b3543f; }
     .hint { font-size: 12px; color: #a0907c; margin: 6px 0 0; }
 
     .check {
@@ -350,6 +362,24 @@
               <span class="val"><b id="opacity-v">1.00</b></span>
             </div>
             <input type="range" id="opacity" min="0.2" max="1" step="0.05" value="1" />
+          </div>
+          <div class="row">
+            <div class="row-head">
+              <label for="rest">休息提醒</label>
+            </div>
+            <select id="rest" class="sel">
+              <option value="off">关闭</option>
+              <option value="200">每 200 次</option>
+              <option value="300">每 300 次</option>
+              <option value="500">每 500 次</option>
+              <option value="800">每 800 次</option>
+              <option value="1000">每 1000 次</option>
+              <option value="2000">每 2000 次</option>
+              <option value="5000">每 5000 次</option>
+            </select>
+            <p class="hint">
+              键盘按键和鼠标点击都计入。到点时小牛会停下手里的活，喊你歇一会儿。
+            </p>
           </div>
         </div>
 

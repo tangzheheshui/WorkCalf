@@ -33,7 +33,7 @@
 
     const SC = 320;
     const KEYS = ['W', 'A', 'S', 'D', 'E', 'H', 'L', 'O', 'Ent', 'Sh'];
-    const STATES = ['busy', 'daze', 'muyu'];
+    const STATES = ['busy', 'daze', 'muyu', 'rest'];
 
     const root = document.getElementById('root');
     const scenes = [];
@@ -85,7 +85,11 @@
       const k = KEYS[Math.floor(i / 18) % KEYS.length];
       const age = (i % 18) / 60;
       return {
-        state,
+        // 休息提醒：动作等同敲木鱼（停下手里的活），额外带一轮气泡
+        state: state === 'rest' ? 'muyu' : state,
+        restText: state === 'rest' ? '生产队的驴都没你这么拼。' : null,
+        restAge: 1,
+        restDur: 6,
         intensity: 0.6,
         headX: 0.3,
         headY: 0.2,
