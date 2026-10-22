@@ -15,10 +15,17 @@ impl MacInputListener {
                 let _ = tx.send(ie);
             }
         });
-        if let Err(err) = result {
-            super::report_listener_error(format!(
-                "无法监听全局键鼠（请授予辅助功能权限）: {err:?}"
-            ));
+        match result {
+            Ok(()) => {
+                crate::commands::write_log("input: rdev listen Ok, event tap running");
+            }
+            Err(err) => {
+                let msg = format!(
+                    "无法监听全局键鼠（macOS 需在 系统设置→隐私与安全性 里授予 辅助功能+输入监控）: {err:?}"
+                );
+                crate::commands::write_log(&format!("input: listen FAILED: {err:?}"));
+                super::report_listener_error(msg);
+            }
         }
     }
 }

@@ -46,6 +46,7 @@ pub fn spawn(app: AppHandle) {
         #[cfg(target_os = "macos")]
         std::thread::spawn(move || macos::MacInputListener::start(tx));
 
+        crate::commands::write_log("input: listener thread spawned");
         forward_loop(app, rx);
     });
 }
