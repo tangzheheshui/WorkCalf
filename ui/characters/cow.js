@@ -179,9 +179,9 @@ export default {
     }
     ctx.stroke();
 
-    // 烟
+    // 烟：只在敲木鱼的静心态叼着，发呆不抽
     let smokeTip = null;
-    if (muyu || daze) {
+    if (muyu) {
       smokeTip = cigarette(ctx, w * 0.095, h * 0.082, w, h, u, C.ink);
     }
     return { smokeTip };

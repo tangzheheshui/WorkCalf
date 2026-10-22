@@ -357,7 +357,7 @@ export class DoodleRenderer {
     const t = this.t;
     const muyu = p.state === 'muyu';
     const daze = p.state === 'daze';
-    const smoking = daze || muyu;
+    const smoking = muyu;
 
     // 背景留空：窗口本身是透明的，人物背后直接透出桌面，不再铺蓝底
     ctx.clearRect(0, 0, w, h);
