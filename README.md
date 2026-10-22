@@ -143,6 +143,23 @@ renderer.hitTest(x, y)  // 精细命中（预留：当前整窗热区，未使�
 - 透明窗口需 `macOSPrivateApi`（已配置）+ 对应 Cargo feature（已开启）
 - macOS 侧代码已写好但**未在真机编译验证**，需 MacBook 构建
 
+### 用 GitHub Actions 打 mac 包
+
+Windows 上没法构建 macOS 产物（需要 Xcode 工具链、codesign、hdiutil），用
+`.github/workflows/build-macos.yml`：
+
+- 在 Actions 页手动 Run workflow，或 push 一个 `v*` tag；
+- 在 Apple Silicon runner 上分别交叉编译 `aarch64-apple-darwin`（M 芯片）和
+  `x86_64-apple-darwin`（Intel），各产出一个 dmg；
+- 构建完成后到该次 run 的 **Artifacts** 下载（`WorkCalf-macos-arm64`、`WorkCalf-macos-x86_64`）。
+
+未签名的包首次打开会被 Gatekeeper 拦下：右键 →「打开」，或在终端执行
+`xattr -dr com.apple.quarantine /Applications/WorkCalf.app`。要免这一步需要
+Apple Developer Program（$99/年）做 Developer ID 签名 + 公证。
+
+图标目前最大只有 256×256（`src-tauri/icons/icon.png`），macOS 会把它放大使用，
+Retina 下偏糊；换成 1024×1024 源图后重新跑 `tauri icon` 生成全套图标即可。
+
 ## 路线图（V1.1 候选）
 
 - 开机自启、休眠睡觉动画（原文档排期）
