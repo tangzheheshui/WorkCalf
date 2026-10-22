@@ -24,3 +24,8 @@ windows-sys = { version = "0.61", features = [
 
 [profile.release]
 strip = true
+
+# 本地补丁版 rdev：macOS 事件回调线程禁用 HIToolbox 查字符（新版 macOS 主线程断言导致按键即崩），
+# 详见 vendor/rdev/src/macos/keyboard.rs 内注释
+[patch.crates-io]
+rdev = { path = "vendor/rdev" }
