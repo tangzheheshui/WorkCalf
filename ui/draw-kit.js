@@ -23,6 +23,24 @@ export function blobPath(ctx, x, y, rx, ry, rot, seed) {
   ctx.closePath();
 }
 
+/** 和 blobPath 同一个抖动形状，但返回 Path2D（需要单独填/描、或当裁剪区时用） */
+export function blobShape(x, y, rx, ry, rot, seed) {
+  const n = 26;
+  const p = new Path2D();
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * TAU;
+    const k = 1 + Math.sin(a * 3 + seed) * 0.02 + Math.sin(a * 5 + seed * 1.7) * 0.013;
+    const px = Math.cos(a) * rx * k;
+    const py = Math.sin(a) * ry * k;
+    const X = x + px * Math.cos(rot) - py * Math.sin(rot);
+    const Y = y + px * Math.sin(rot) + py * Math.cos(rot);
+    if (i === 0) p.moveTo(X, Y);
+    else p.lineTo(X, Y);
+  }
+  p.closePath();
+  return p;
+}
+
 /** 填色 + 粗描边 */
 export function fillInk(ctx, fill, lw, ink) {
   ctx.fillStyle = fill;

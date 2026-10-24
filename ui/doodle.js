@@ -13,7 +13,6 @@ const { TAU, lerp, blobPath, rrectPath } = kit;
 
 // 本地薄包装：把当前配色里的描边/身体色补上，调用处保持简洁
 const fillInk = (ctx, fill, lw) => kit.fillInk(ctx, fill, lw, C.ink);
-const blob = (ctx, x, y, rx, ry, rot, seed, fill, lw) => kit.blob(ctx, x, y, rx, ry, rot, seed, fill, lw, C.ink);
 const inkTube = (ctx, draw, width, lw) => kit.inkTube(ctx, draw, width, lw, C.ink, C.body);
 
 /** 敲木鱼一拍的抬锤曲线：抬起 → 顶端停顿 → 快速砸下 → 休息 */
@@ -375,6 +374,8 @@ export class DoodleRenderer {
     ctx.translate(-w * SCENE_PIVOT.x, -h * SCENE_PIVOT.y);
 
     this.drawBody(ctx, w, h, u, breathe);
+    // 角色可选钩子：在身体上补花色（身体画完、桌子和胳膊盖上来之前）
+    getCharacter(C.character).drawBodyDetail?.(ctx, w, h, u, { breathe, body: this.body });
     this.drawDesk(ctx, w, h, u);
     this.drawMouseArea(ctx, w, h, u, muyu);
     this.drawKeyboard(ctx, w, h, u, p);
@@ -498,17 +499,24 @@ export class DoodleRenderer {
 
   // ---------- 身体 ----------
   drawBody(ctx, w, h, u, breathe) {
-    blob(
-      ctx,
-      w * 0.47,
-      h * 0.60 + breathe * h,
-      w * 0.235,
-      h * 0.15,
-      -0.05,
-      2.3,
-      C.body,
-      4.2 * u,
-    );
+    const body = {
+      x: w * 0.47,
+      y: h * 0.60 + breathe * h,
+      rx: w * 0.235,
+      ry: h * 0.15,
+      rot: -0.05,
+      seed: 2.3,
+    };
+    const path = kit.blobShape(body.x, body.y, body.rx, body.ry, body.rot, body.seed);
+    ctx.fillStyle = C.body;
+    ctx.fill(path);
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 4.2 * u;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke(path);
+    // 身体几何交给角色模块：脖子/胸口的花色要贴着身体画，头也要知道哪里被身体挡住
+    this.body = { ...body, path };
   }
 
   // ---------- 桌面 ----------
@@ -956,6 +964,9 @@ export class DoodleRenderer {
 
     const { smokeTip } = getCharacter(C.character).drawHead({
       ctx, w, h, u, t, p, rx, ry, muyu, daze, breathe, glance, glanceSide, C,
+      // 头部变换 + 身体几何：角色用它判断“哪段轮廓被身体挡在后面”，好把脖子接上
+      headAt: { x: hx, y: hy, rot },
+      body: this.body,
     }) || {};
 
     // 烟头局部坐标 → 世界坐标（供烟雾粒子发射）

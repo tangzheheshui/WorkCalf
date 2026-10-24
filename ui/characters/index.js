@@ -7,8 +7,9 @@
 // 每个角色模块的接口见 characters/cow.js 顶部说明。
 
 import cow from './cow.js';
+import shiba from './shiba.js';
 
-export const CHARACTERS = [cow];
+export const CHARACTERS = [cow, shiba];
 
 /** 按 id 取角色；未知 id（比如配置里留着已下架的模型）回落到第一个 */
 export function getCharacter(id) {
