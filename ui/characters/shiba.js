@@ -153,7 +153,7 @@ function shibaHeadShape(yOff, rx, ry, seed) {
  */
 function eyeRectPath(ctx, x, y, rx, ry, rot, seed) {
   const jit = (k) => (Math.sin(seed * 91.7 + k * 37.3) * 0.5 + 0.5);
-  const base = Math.min(rx, ry) * 0.62;
+  const base = Math.min(rx, ry) * 0.90;
   const r0 = base * (0.88 + jit(1) * 0.24);
   const r1 = base * (0.88 + jit(2) * 0.24);
   const r2 = base * (0.88 + jit(3) * 0.24);
@@ -185,21 +185,26 @@ function eyeRectPath(ctx, x, y, rx, ry, rot, seed) {
 function shibaFace(ctx, C, w, h, u, o) {
   const { daze, muyu, glance, glanceSide, gazeX, gazeY, seed } = o;
 
-  // 白口鼻：铺满脸的下半张——两边到腮帮、下面到下巴，上沿贴着鼻头顶、往两腮微微翘起。
-  // 形状取「内缩一圈的头型」∩「上沿以下」，所以中间最宽、往下顺着下巴收窄，不是椭圆；
-  // 内缩量≈描边的一半，白色正好接住下巴那根黑线，不会露出黄边。
+  // 白口鼻：铺满脸的下半张——上沿平、两腮圆角往下走，下沿顺着下巴收窄。
+  // 形状取「收窄一圈的头型」∩「上沿以下」，所以中间最宽、往下顺着下巴收窄，不是椭圆；
+  // 横向再收 10%，两边留一道黄毛，和参考图一样白色不顶到轮廓线。
   {
     const inset = shibaHeadShape(
       h * 0.004,
-      w * 0.212 * 1.06 * 0.958,
+      w * 0.212 * 1.06 * 0.958 * 0.90,
       h * 0.200 * 0.99 * 0.955,
       seed,
     );
+    // 上沿从中间往两边缓缓下坡，到腮帮最宽处切线正好竖直——
+    // 和口鼻两侧的边界擦着接上，不会在两边冒出尖角
     const below = new Path2D();
-    below.moveTo(-w * 0.24, -h * 0.016);
-    below.quadraticCurveTo(0, h * 0.040, w * 0.24, -h * 0.016);
-    below.lineTo(w * 0.24, h * 0.3);
-    below.lineTo(-w * 0.24, h * 0.3);
+    const bw = w * 0.208;
+    below.moveTo(-bw, h * 0.30);
+    below.lineTo(-bw, h * 0.046);
+    below.bezierCurveTo(-w * 0.208, h * 0.018, -w * 0.150, h * 0.006, -w * 0.050, h * 0.006);
+    below.quadraticCurveTo(0, h * 0.003, w * 0.050, h * 0.006);
+    below.bezierCurveTo(w * 0.150, h * 0.006, w * 0.208, h * 0.018, bw, h * 0.046);
+    below.lineTo(bw, h * 0.30);
     below.closePath();
 
     ctx.save();
@@ -392,8 +397,8 @@ export default {
     shibaEar(ctx, C, -1, w, h, u, tipY, head);
     shibaEar(ctx, C, 1, w, h, u, tipY, head);
 
-    // 脖子：身体挡在头后面的那一段不画黑线，用奶白沿下巴压掉，
-    // 白口鼻顺势连到脖子和胸口；桌沿以下不算（那里是脑袋贴着桌子）
+    // 脖子：身体挡在头后面的那一段不画黑线——先用毛色压掉，头和身子连成一片；
+    // 桌沿以下不算（那里是脑袋贴着桌子，轮廓线要留着）
     const bodyLocal = bodyInHeadFrame(w, h, headAt, body, SX, SY);
     if (bodyLocal && headAt) {
       const aboveDesk = new Path2D();
@@ -413,10 +418,19 @@ export default {
       ctx.save();
       ctx.clip(bodyLocal);
       ctx.clip(aboveDesk);
-      ctx.strokeStyle = C.muzzle;
+      ctx.strokeStyle = C.body;
       ctx.lineWidth = 5.6 * u;
       ctx.lineJoin = 'round';
       ctx.stroke(head);
+      ctx.restore();
+
+      // 下巴正中留一段白，把口鼻的白接到胸口的白（脖子两侧仍留黄毛）
+      ctx.save();
+      ctx.clip(bodyLocal);
+      ctx.clip(aboveDesk);
+      blobPath(ctx, 0, h * 0.205, w * 0.090, h * 0.040, 0, 7.3);
+      ctx.fillStyle = C.muzzle;
+      ctx.fill();
       ctx.restore();
     }
 
