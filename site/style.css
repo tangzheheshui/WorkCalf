@@ -230,6 +230,42 @@ main { padding: 0 28px; }
   color: var(--muted);
 }
 
+/* ---------- 角色一览 ---------- */
+.models-title {
+  margin: 0 0 18px;
+  font-size: 21px;
+  text-align: center;
+}
+
+.grid-models {
+  grid-template-columns: 1fr 1fr;
+  max-width: 640px;
+  margin: 0 auto;
+  gap: 18px;
+}
+
+.card-model { text-align: center; }
+
+.card-model .model-face {
+  width: 104px;
+  height: 104px;
+  margin: 4px auto 12px;
+}
+
+.card-model h3 { font-size: 16px; }
+
+.new-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 2px;
+}
+
 /* ---------- 开源 / 隐私 ---------- */
 .trust {
   display: grid;
