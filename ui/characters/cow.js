@@ -6,6 +6,7 @@
 //   style                     覆盖 DEFAULT_STYLE 的配色与开关
 //   drawHead(info)            画头部（耳朵 → 脑袋 → 五官 → 烟），返回 { smokeTip }
 //   drawPortrait(info)        画设置面板里的头像
+//   idleAction(info)?         可选：闲置小动作，返回头部偏移与表情状态（见 shiba.js）
 //
 // info 由核心提供：ctx 已平移到头部中心并按 rot 旋转，坐标以头部宽高 (w, h) 为基准。
 // 上架/下架模型只需在 characters/index.js 里加减一行，核心代码不用动。

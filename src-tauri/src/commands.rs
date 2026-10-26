@@ -142,7 +142,7 @@ pub fn set_config(app: AppHandle, patch: Value) -> Result<AppConfig, String> {
         cfg.rest_reminder = v;
     }
     if let Some(v) = patch.get("rest_interval").and_then(Value::as_u64) {
-        cfg.rest_interval = v.clamp(100, 10_000);
+        cfg.rest_interval = v.clamp(1000, 5000);
     }
 
     let path = st.cfg_path.clone();

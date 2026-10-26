@@ -43,6 +43,7 @@ const REST_LINES = [
     '蹄子都冒烟了，停一下怎么了？',
     '先吃口草再干活！',
     '我是不是也该放个风了？',
+    '先去放个水？',
   ],
   [
     '该给我加把草了吧？',
@@ -50,10 +51,12 @@ const REST_LINES = [
     '蹄子磨穿了，连工伤都不算吗？',
     '现在就想原地卧倒！',
     '谁问过这头牛累不累？',
+    '憋到现在，膀胱都快炸了！',
+    '该去蹲个坑了吧？',
   ],
   [
     '该把牛命也当命了吧？',
-    '总得留点反刍的工夫！',
+    '再不动，屁都要排队出厂了！',
     '换头牛试试，看它撑不撑得住？',
     '心疼一下这头没人疼的牛吧！',
     '这五分钟，我先撂挑子行不行？',
@@ -64,7 +67,7 @@ const REST_SHOW_MS = 5000;
 let usage = Number(cfg.usage_count) || 0;
 let usagePending = 0;
 let usageFlushTimer = 0;
-let restInterval = Math.max(100, Number(cfg.rest_interval) || 1000);
+let restInterval = Math.min(5000, Math.max(1000, Number(cfg.rest_interval) || 1000));
 let restTier = Math.floor(usage / restInterval); // 已经提醒过的档位
 let rest = { text: '', at: 0, until: 0 };
 let lastRestLine = '';
@@ -186,7 +189,7 @@ await listen('pet://config', (e) => {
   applyOpacity();
   applyStyle(getModel(cfg.model_id).style);
   // 改间隔/开关后，按当前累计重新对齐档位，避免积压的提醒立刻弹出
-  restInterval = Math.max(100, Number(cfg.rest_interval) || 1000);
+  restInterval = Math.min(5000, Math.max(1000, Number(cfg.rest_interval) || 1000));
   restTier = Math.floor(usage / restInterval);
 });
 await listen('pet://listener-error', (e) => console.warn('[勤劳的牛牛]', e.payload.message));

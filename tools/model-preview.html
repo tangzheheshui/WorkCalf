@@ -36,7 +36,8 @@
     const STATES = ['busy', 'daze', 'muyu', 'rest'];
 
     const root = document.getElementById('root');
-    const scenes = [];
+    const scenes = []; // 连续推进 150 帧的状态图
+    const stills = []; // 角色自定义的动作定格（直接跳到某个时刻渲染一帧）
 
     for (const m of MODELS) {
       const wrap = document.createElement('div');
@@ -74,12 +75,41 @@
         scenes.push({ renderer: new DoodleRenderer(cv), style: m.style, state: st });
       }
       wrap.appendChild(row);
+
+      // 角色自定义的闲置动作：各截一帧，用来检查斜视/偷看/吐舌等表情
+      if (m.preview && m.preview.length) {
+        const arow = document.createElement('div');
+        arow.className = 'row';
+        for (const item of m.preview) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          const cv = document.createElement('canvas');
+          cv.style.width = SC + 'px';
+          cv.style.height = SC + 'px';
+          cell.appendChild(cv);
+          const cap = document.createElement('div');
+          cap.className = 'cap';
+          cap.textContent = item.label;
+          cell.appendChild(cap);
+          arow.appendChild(cell);
+          stills.push({
+            renderer: new DoodleRenderer(cv),
+            style: m.style,
+            state: item.state,
+            t: item.t,
+            stateAge: item.stateAge,
+            epoch: item.epoch,
+          });
+        }
+        wrap.appendChild(arow);
+      }
+
       root.appendChild(wrap);
     }
 
     // 渲染前先强制定义一次布局：DoodleRenderer 依赖 parentElement 的 clientWidth
     document.body.offsetHeight;
-    for (const s of scenes) s.renderer.resize();
+    for (const s of scenes.concat(stills)) s.renderer.resize();
     // 同步推进 150 帧（相当于 2.5 秒动画），让呼吸/手/烟雾都进入稳态
     const params = (i, state) => {
       const k = KEYS[Math.floor(i / 18) % KEYS.length];
@@ -108,14 +138,26 @@
           s.renderer.render(1 / 60, params(i, s.state));
         }
       }
+      // 动作定格：把渲染器时间/状态年龄直接拨到动作摆幅最大的时刻，再画一帧
+      for (const s of stills) {
+        applyStyle(s.style);
+        s.renderer.t = Math.max(0, (s.t || 0) - 1 / 60);
+        const base = params(0, s.state);
+        if (s.stateAge !== undefined) {
+          base.stateAge = s.stateAge;
+          base.idleEpoch = s.epoch || 0;
+        }
+        s.renderer.render(1 / 60, base);
+      }
     } catch (e) {
       document.getElementById('err').textContent += 'LOOP ERR ' + e.message + '\n';
     }
+    const all = scenes.concat(stills);
     // 诊断信息：确认循环真的跑了、画布尺寸非 0、像素是否真的画上了
     document.getElementById('err').textContent +=
-      'scenes=' + scenes.length + ' ' +
-      scenes.map((s) => s.renderer.w + 'x' + s.renderer.h).join(' ') + ' | px:' +
-      scenes.map((s) => {
+      'scenes=' + all.length + ' ' +
+      all.map((s) => s.renderer.w + 'x' + s.renderer.h).join(' ') + ' | px:' +
+      all.map((s) => {
         const c = s.renderer.canvas;
         const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
         let n = 0;

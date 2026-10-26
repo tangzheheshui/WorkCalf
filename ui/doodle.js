@@ -269,6 +269,10 @@ export class DoodleRenderer {
     this.liftY = 0; // 抬手最高点的 y
     this.mousePos = { x: 0, y: 0 }; // 平滑后的鼠标垫内偏移（像素）
     this.mouseOffset = { x: 0, y: 0 }; // 左手/鼠标跟随真实鼠标的偏移
+    // 当前状态持续多久 / 第几次进入发呆：角色的闲置小动作按这个来挑
+    this.stateAge = 0;
+    this.idleEpoch = -1;
+    this.lastState = null;
     new ResizeObserver(() => this.resize()).observe(canvas.parentElement);
     this.resize();
   }
@@ -350,6 +354,19 @@ export class DoodleRenderer {
 
   render(dt, p) {
     this.t += dt * p.speed;
+
+    // 状态计时：每次进入发呆，空闲小动作就换一个；进入发呆后先愣一下再演
+    if (p.state !== this.lastState) {
+      if (p.state === 'daze') this.idleEpoch += 1;
+      this.lastState = p.state;
+      this.stateAge = 0;
+    } else {
+      this.stateAge += dt;
+    }
+    // 预览页可以塞参数指定状态年龄/第几次发呆，用来截某个动作的静帧
+    const stateAge = Number.isFinite(p.stateAge) ? p.stateAge : this.stateAge;
+    const idleEpoch = Number.isFinite(p.idleEpoch) ? p.idleEpoch : this.idleEpoch;
+
     const { ctx, w, h } = this;
     if (!w) return;
     const u = w / 204;
@@ -395,7 +412,7 @@ export class DoodleRenderer {
     this.drawArms(ctx, w, h, u, pose);
     this.drawKnockFx(ctx, w, h, u, t, muyu);
     this.drawKeyFlash(ctx, w, h, u, p, muyu || daze);
-    this.drawHead(ctx, w, h, u, t, p, muyu, daze, breathe);
+    this.drawHead(ctx, w, h, u, t, p, muyu, daze, breathe, stateAge, idleEpoch);
     this.drawOffKey(ctx, w, h, u, p, muyu || daze);
 
     if (smoking) this.drawSmoke(ctx, w, h, u, dt);
@@ -946,11 +963,31 @@ export class DoodleRenderer {
 
   // ---------- 头部 / 脸 ----------
   // 头摆在哪儿、多大由身体姿态决定；头长什么样完全交给角色模块（characters/*.js）。
-  drawHead(ctx, w, h, u, t, p, muyu, daze, breathe) {
-    const hx = w * 0.44 + p.headX * w * 0.012;
+  drawHead(ctx, w, h, u, t, p, muyu, daze, breathe, stateAge, idleEpoch) {
+    const ch = getCharacter(C.character);
+
+    // 偷瞄节拍由核心算好再传给角色：角色只管怎么画
+    const glance = muyu ? muyuGlance(t) : 0;
+    const glanceSide = muyu ? muyuGlanceSide(t) : 0;
+
+    // 角色可选钩子：闲置小动作。返回 dx/dy（按画面宽高的比例）和 rot（弧度），
+    // 叠加到头部变换上；act 原样传给 drawHead 画表情。没有这个钩子的角色保持原样。
+    const act =
+      ch.idleAction?.({ t, stateAge, idleEpoch, p, muyu, daze, glance, glanceSide, w, h, u }) ||
+      null;
+
+    const hx = w * 0.44 + p.headX * w * 0.012 + (act?.dx || 0) * w;
     // 敲木鱼时头略微低下来看木鱼，但不能压住手腕，否则胳膊全被脸挡住
-    const hy = h * (muyu ? 0.470 : 0.345) + p.headY * h * 0.008 + breathe * h;
-    const rot = (muyu ? 0.30 : -0.03) + p.headX * 0.05 + (daze ? 0.05 : 0);
+    const hy =
+      h * (muyu ? 0.470 : 0.345) +
+      p.headY * h * 0.008 +
+      breathe * h +
+      (act?.dy || 0) * h;
+    const rot =
+      (muyu ? 0.30 : -0.03) +
+      p.headX * 0.05 +
+      (daze ? 0.05 : 0) +
+      (act?.rot || 0);
     const rx = w * 0.212;
     const ry = h * 0.200;
 
@@ -958,16 +995,18 @@ export class DoodleRenderer {
     ctx.translate(hx, hy);
     ctx.rotate(rot);
 
-    // 偷瞄节拍由核心算好再传给角色：角色只管怎么画
-    const glance = muyu ? muyuGlance(t) : 0;
-    const glanceSide = muyu ? muyuGlanceSide(t) : 0;
-
-    const { smokeTip } = getCharacter(C.character).drawHead({
-      ctx, w, h, u, t, p, rx, ry, muyu, daze, breathe, glance, glanceSide, C,
+    const { smokeTip } = ch.drawHead({
+      ctx, w, h, u, t, p, rx, ry, muyu, daze, breathe, glance, glanceSide, C, act,
       // 头部变换 + 身体几何：角色用它判断“哪段轮廓被身体挡在后面”，好把脖子接上
       headAt: { x: hx, y: hy, rot },
       body: this.body,
     }) || {};
+
+    // 不抽烟的角色（不返回 smokeTip）不能沿用上一个模型残留的烟头
+    if (!smokeTip) {
+      this.smokeTip = null;
+      this.smoke.length = 0;
+    }
 
     // 烟头局部坐标 → 世界坐标（供烟雾粒子发射）
     if (smokeTip) {

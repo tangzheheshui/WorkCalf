@@ -10,6 +10,8 @@ export const MODELS = CHARACTERS.map((c) => ({
   id: c.id,
   name: c.name,
   desc: c.desc,
+  // 角色可选：preview 是给开发预览页截动作帧用的（不影响正式运行）
+  preview: c.preview,
   // character 告诉核心渲染器用哪个角色模块，其余字段覆盖默认配色
   style: { ...c.style, character: c.id },
 }));

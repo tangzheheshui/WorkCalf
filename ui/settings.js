@@ -74,7 +74,7 @@ function fill(c) {
   if (c.rest_reminder === false) {
     els.rest.value = 'off';
   } else {
-    const v = String(c.rest_interval ?? 1000);
+    const v = String(Math.min(5000, Math.max(1000, Number(c.rest_interval) || 1000)));
     // 配置里可能有选项之外的自定义值：补一个选项再选中
     if (![...els.rest.options].some((o) => o.value === v)) {
       els.rest.add(new Option(`每 ${v} 次`, v));
