@@ -13,49 +13,38 @@
 
 | 平台 | 按钮 | 产物 | 来源 |
 | --- | --- | --- | --- |
-| Windows | 64 位便携版（主推） | `download/WorkCalf.exe` | 本地 `tauri build` |
-| Windows | 64 位安装版 | `download/WorkCalf-Setup.exe` | 本地 `tauri build` |
+| Windows | 64 位便携版（主推） | `download/WorkCalf.exe` | GitHub Actions |
+| Windows | 64 位安装版 | `download/WorkCalf-Setup.exe` | GitHub Actions |
 | macOS | Apple 芯片版 | `download/WorkCalf-mac-arm64.dmg` | GitHub Actions |
 | macOS | Intel 芯片版 | `download/WorkCalf-mac-x64.dmg` | GitHub Actions |
 
 文件名固定，`version.json` 里的地址就不用每次发版都改。
 
-macOS 包由 `.github/workflows/build-macos.yml` 构建：push `v*` tag 后会挂到 GitHub
-Release（`https://github.com/tangzheheshui/WorkCalf/releases`），下载两个 dmg 放进
-`site/download/` 并改成上面的固定文件名即可；`sync-site.sh` 检测到文件后会自动把
-`mac_arm64` / `mac_x64` 写进 `version.json`。
+四个包全部由 GitHub Actions 构建：push `v*` tag 触发 `build-macos.yml` /
+`build-windows.yml`，产物挂到 GitHub Release
+（`https://github.com/tangzheheshui/WorkCalf/releases`），发版脚本再按固定文件名
+下载到 `site/download/`。
 
 ## 发版流程
 
-1. 构建：`cd src-tauri && tauri build --bundles nsis`
-   产出 `target/release/workcalf.exe`（便携版）和
-   `target/release/bundle/nsis/WorkCalf_<版本>_x64-setup.exe`（安装版）。
-2. 拷到固定文件名：`site/download/WorkCalf.exe`、`site/download/WorkCalf-Setup.exe`
-3. `version.json`：
+一条命令：
 
-   ```json
-   {
-     "version": "1.1.0",
-     "updated": "2026-11-01",
-     "url": "download/WorkCalf.exe",
-     "urls": {
-       "win_portable": "download/WorkCalf.exe",
-       "win_setup": "download/WorkCalf-Setup.exe",
-       "mac_arm64": "download/WorkCalf-mac-arm64.dmg",
-       "mac_x64": "download/WorkCalf-mac-x64.dmg"
-     },
-     "notes": "这一版改了什么"
-   }
-   ```
+```bash
+bash tools/release.sh 1.2.0
+```
 
-   `url` 是主推链接，客户端「检查更新」用它；`urls` 按按钮的 `data-key`
-   对应到具体产物。都可以写相对路径。
-4. 同时把 `src-tauri/tauri.conf.json` 和 `src-tauri/Cargo.toml` 的
-   `version` 改成同一个版本号，再重新打包上传。
-5. 部署整个 `site/`。
+它会串起整条链路：改三处版本号并提交 → 打 tag 推送 → 等 CI 出四个包 →
+下载到 `site/download/` → 生成 `version.json` → 同步 `site/` 到服务器 → 线上自检
+（版本号、四个下载链接、CORS）。中途失败可直接重跑同一条命令，细节和排错见
+`.claude/skills/release/SKILL.md`。
 
-第 1～3 步可以交给脚本：`SERVER=user@vps bash tools/sync-site.sh local`。
-版本号从 `tauri.conf.json` 读取，`updated` 自动填当天；
+只改官网页面、不发版时，单独跑：
+
+```bash
+SERVER=ubuntu@193.112.26.217 bash tools/sync-site.sh
+```
+
+它会用 `tauri.conf.json` 里的版本号重写 `version.json`，同步后检查线上版本和下载链接；
 本机没有 rsync 时自动退回 `tar | ssh`。
 
 ## 应用内检查更新
