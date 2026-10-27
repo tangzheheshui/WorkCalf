@@ -3,7 +3,10 @@
 # 产物四个：macOS dmg ×2 + Windows exe ×2，全由 GitHub Actions 出（build-macos /
 # build-windows 两个 workflow），本脚本等它们都挂上 Release 后下载并同步官网。
 #
-# 用法：bash tools/release.sh 1.2.0
+# 用法：bash tools/release.sh [版本号]
+#   给了版本号就用；不给就按上次 tag 以来的提交自动定：
+#   有 feat 类改动 → 升次版本（1.1.0 → 1.2.0），其余 → 升补丁（1.1.0 → 1.1.1）。
+#   只有 site//tools//docs//.md 改动时不升版本——那种情况直接同步官网即可，不必重打一次包。
 # 前提：在 main 上、工作区干净；官网页面改动在跑本脚本前提交，随最后一步一起上线。
 #
 # 可重跑：中途失败直接再跑同一条命令即可。
@@ -15,7 +18,32 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VER="${1:?用法: bash tools/release.sh <版本号，如 1.2.0>}"
+VER="${1:-}"
+if [ -z "$VER" ]; then
+  LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+  [ -n "$LAST_TAG" ] \
+    || { echo "[错误] 仓库里还没有 tag，第一次发版请显式给版本号：bash tools/release.sh 0.1.0" >&2; exit 1; }
+  BASE="${LAST_TAG#v}"
+  if ! printf '%s\n' "$BASE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "[错误] 最新 tag $LAST_TAG 不是 X.Y.Z 格式，请显式给版本号" >&2
+    exit 1
+  fi
+  ALL_CHANGES="$(git log --format=%s --no-merges "$LAST_TAG..HEAD" || true)"
+  [ -n "$ALL_CHANGES" ] \
+    || { echo "[错误] $LAST_TAG 之后没有任何提交，没东西可发" >&2; exit 1; }
+  APP_CHANGES="$(git log --format=%s --no-merges "$LAST_TAG..HEAD" -- . ':!site' ':!tools' ':!docs' ':!.claude' ':!*.md' || true)"
+  [ -n "$APP_CHANGES" ] \
+    || { echo "[错误] $LAST_TAG 之后只有官网/工具/文档改动，没有需要重新打包的代码。" >&2
+         echo "        只更新官网请用：SERVER=ubuntu@193.112.26.217 bash tools/sync-site.sh" >&2
+         exit 1; }
+  IFS=. read -r MAJ MIN PAT <<< "$BASE"
+  if printf '%s\n' "$APP_CHANGES" | grep -qE '^feat(\(|:|!)'; then
+    VER="$MAJ.$((MIN + 1)).0"
+  else
+    VER="$MAJ.$MIN.$((PAT + 1))"
+  fi
+  echo "[OK] 未指定版本号，按改动自动定：$LAST_TAG → v$VER"
+fi
 case "$VER" in
   "" | .* | *. | *[!0-9.]*)
     echo "[错误] 版本号格式不对：$VER（要像 1.2.0）" >&2
