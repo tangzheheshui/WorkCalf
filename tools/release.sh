@@ -27,9 +27,16 @@ REPO="tangzheheshui/WorkCalf"
 SERVER="${SERVER:-ubuntu@193.112.26.217}"
 SITE_URL="${SITE_URL:-https://workcalf.app.tangzheheshui.cn}"
 
-# 轮询产物/CI 状态用 Python；macOS 上是 python3，Windows Git Bash 上通常只有 python
-PY="$(command -v python3 || command -v python || true)"
-[ -n "$PY" ] || { echo "[错误] 找不到 python3/python，无法轮询 CI 状态" >&2; exit 1; }
+# 轮询产物/CI 状态用 Python；macOS 上是 python3，Windows Git Bash 上通常只有 python。
+# 注意：Windows 的 python3 可能是应用商店的占位程序——能 command -v 到，但一执行就
+# 以 49 退出并且没有任何输出，所以必须实际跑一下 import 才算数，否则轮询永远返回 0。
+PY=""
+for c in python3 python; do
+  p="$(command -v "$c" 2>/dev/null || true)"
+  [ -n "$p" ] || continue
+  if "$p" -c 'import sys' >/dev/null 2>&1; then PY="$p"; break; fi
+done
+[ -n "$PY" ] || { echo "[错误] 找不到可用的 python3/python，无法轮询 CI 状态" >&2; exit 1; }
 
 # ---- 0. 预检 ---------------------------------------------------------------
 # site/download/ 的安装包是 gitignore 的；site/version.json 是同步时生成的，
@@ -68,18 +75,29 @@ fi
 # ---- 2. tag + push ---------------------------------------------------------
 HEAD_SHA="$(git rev-parse HEAD)"
 LOCAL_TAG=0
+LOCAL_TAG_SHA=""
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   LOCAL_TAG=1
-  if [ "$(git rev-list -n1 "$TAG")" != "$HEAD_SHA" ]; then
-    echo "[错误] 本地 tag $TAG 指向旧提交，不能直接在 $TAG 上重发。" >&2
-    echo "        先清掉旧 tag 再重跑：git tag -d $TAG && git push origin :refs/tags/$TAG" >&2
-    exit 1
+  LOCAL_TAG_SHA="$(git rev-list -n1 "$TAG")"
+  if [ "$LOCAL_TAG_SHA" != "$HEAD_SHA" ]; then
+    # tag 打完又提交了官网改动（发版中途改页面、或上次同步留下的 version.json 提交）
+    # 属正常情况：产物只跟 tag 指向的源码有关，这些路径的改动不影响，直接复用。
+    # 但 tag 之后若动过会进打包产物的文件，源码和产物就对不上了，必须清 tag 重发。
+    OFF_BUILD="$(git diff --name-only "$LOCAL_TAG_SHA" "$HEAD_SHA" \
+      | grep -Ev '^(site/|tools/|\.claude/|docs/|.*\.md$)' || true)"
+    if [ -n "$OFF_BUILD" ]; then
+      echo "[错误] tag $TAG 与当前提交之间还有会进打包产物的改动：" >&2
+      printf '%s\n' "$OFF_BUILD" >&2
+      echo "        先清掉旧 tag 再重跑：git tag -d $TAG && git push origin :refs/tags/$TAG" >&2
+      exit 1
+    fi
+    echo "[OK] tag $TAG 已存在，之后的提交只动了官网/工具/文档，复用这套产物"
   fi
 fi
 REMOTE_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1)"
-if [ -n "$REMOTE_TAG_SHA" ] && [ "$REMOTE_TAG_SHA" != "$HEAD_SHA" ]; then
-  echo "[错误] 远端 tag $TAG 已存在且指向旧提交（$(printf '%s' "$REMOTE_TAG_SHA" | cut -c1-7)）。" >&2
-  echo "        先清掉旧 tag 再重跑：git tag -d $TAG 2>/dev/null; git push origin :refs/tags/$TAG" >&2
+if [ -n "$REMOTE_TAG_SHA" ] && [ "$REMOTE_TAG_SHA" != "$LOCAL_TAG_SHA" ]; then
+  echo "[错误] 远端 tag $TAG 指向的提交和本地不一致（$(printf '%s' "$REMOTE_TAG_SHA" | cut -c1-7) ≠ $(printf '%s' "$LOCAL_TAG_SHA" | cut -c1-7)）。" >&2
+  echo "        先清掉远端旧 tag 再重跑：git tag -d $TAG; git push origin :refs/tags/$TAG" >&2
   exit 1
 fi
 if [ "$LOCAL_TAG" = 0 ] && [ -z "$REMOTE_TAG_SHA" ]; then
@@ -87,7 +105,7 @@ if [ "$LOCAL_TAG" = 0 ] && [ -z "$REMOTE_TAG_SHA" ]; then
   LOCAL_TAG=1
   echo "[OK] 已打 tag $TAG"
 elif [ -n "$REMOTE_TAG_SHA" ]; then
-  echo "[OK] 远端已有 tag $TAG 且指向当前提交，复用"
+  echo "[OK] 远端已有 tag $TAG，复用"
 else
   echo "[OK] 本地已有 tag $TAG，补推远端"
 fi
@@ -132,6 +150,8 @@ DEADLINE=$((SECONDS + 2400))
 I=0
 FAIL_STREAK=0
 
+# 这里不吞 stderr：单个产物拉 HEAD 失败会在 Python 里被捕获；能冒出来的报错都是
+# 解释器/环境级别的问题，必须让它打出来，否则又会静默地一直显示 0/4。
 count_assets() {
   REPO="$REPO" TAG="$TAG" START_UTC="$START_UTC" REQUIRE_FRESH="$REQUIRE_FRESH" "$PY" -c '
 import os, sys, urllib.request
@@ -170,7 +190,7 @@ for name in names:
             continue
     n += 1
 print(n)
-' 2>/dev/null || echo 0
+' || echo 0
 }
 
 badge_states() {
