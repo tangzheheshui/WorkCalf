@@ -309,6 +309,26 @@ main { padding: 0 28px; }
 /* ---------- 下载 ---------- */
 .download { padding-bottom: 44px; }
 
+.dl-version {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.dl-version b {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .os-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
