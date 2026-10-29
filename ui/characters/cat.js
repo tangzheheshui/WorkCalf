@@ -1,7 +1,7 @@
-// 小橘：线条风小猫，趴工位打工（形象按用户选的 05 号候选定稿）。
+// 小橘：线条风小猫，趴工位打工（形象按用户反馈定稿）。
 //
-// 白猫 + 粗藏青描边 + 斗鸡眼（白眼圈黑眼珠往鼻子挤）+ 常驻腮红 +
-// 浅棕小眉/三杠/胡须 + 宽扁胖脸。休息脸 = 斗鸡眼，表情换法：
+// 白猫 + 粗藏青描边 + 豆豆眼（黑点带一点高光）+ 常驻腮红 +
+// 浅棕小眉/三杠/胡须 + 宽扁胖脸。休息脸 = 豆豆眼，表情换法：
 //   开心=弧往上弯，闭眼=弧往下弯，得意=眯眼线，惊讶=瞪圆眼，生气=加两道黑眉。
 // 与白牛牛/得意柴同一套角色接口（见 characters/cow.js 顶部说明）。
 //
@@ -72,13 +72,13 @@ function bump(k, rise = 0.12, fall = 0.22) {
 }
 
 /**
- * 五官：斗鸡眼为基准（05 号候选），常驻腮红，表情换线的画法。
+ * 五官：豆豆眼为基准，常驻腮红，表情换线的画法。
  * act 由 idleAction 给出；muyu/glance 时优先演敲木鱼那一套。
  */
 function catFace(ctx, C, rx, ry, u, o) {
   const { muyu, busy, glance, glanceSide, act, t, intensity } = o;
 
-  let eyes = 'cross'; // cross 斗鸡眼(基准) | wide 瞪圆眼(惊讶) | happy 笑眼 | closed 闭眼 | slit 眯眼线(得意) | wink
+  let eyes = 'dot'; // dot 豆豆眼(基准) | wide 瞪圆眼(惊讶) | happy 笑眼 | closed 闭眼 | slit 眯眼线(得意) | wink
   let winkSide = 0; // wink 时哪只眼闭
   let peekSide = 0; // 偷瞄时哪只眼眯成短缝
   let mouth = 'w'; // w | smirk | open | tongue | pout | tight
@@ -135,30 +135,15 @@ function catFace(ctx, C, rx, ry, u, o) {
     eyes = 'closed';
   }
 
-  // 眼睛：斗鸡眼 / 瞪圆 / 笑眼 / 闭眼 / 眯眼线 / 偷瞄短缝
+  // 眼睛：豆豆眼 / 瞪圆 / 笑眼 / 闭眼 / 眯眼线 / 偷瞄短缝
   const eyeX = rx * 0.406;
   const eyeY = -ry * 0.10;
   const drawEye = (sx) => {
     const x0 = sx * eyeX;
     let mode = eyes;
-    if (mode === 'wink') mode = sx === winkSide ? 'closed' : 'cross';
+    if (mode === 'wink') mode = sx === winkSide ? 'closed' : 'dot';
     if (sx === peekSide) mode = 'peek';
 
-    if (mode === 'cross') {
-      // 斗鸡眼（基准）：白眼圈 + 黑眼珠往鼻子方向挤
-      ctx.beginPath();
-      ctx.arc(x0, eyeY, rx * 0.082, 0, TAU);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      ctx.strokeStyle = C.ink;
-      ctx.lineWidth = 2.6 * u;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x0 - sx * rx * 0.034, eyeY + ry * 0.014, rx * 0.040, 0, TAU);
-      ctx.fillStyle = C.ink;
-      ctx.fill();
-      return;
-    }
     if (mode === 'wide') {
       // 瞪圆眼：白底 + 描边 + 中间瞳孔（惊讶）
       ctx.beginPath();
@@ -175,7 +160,7 @@ function catFace(ctx, C, rx, ry, u, o) {
       return;
     }
     if (mode === 'dot') {
-      // 豆豆眼：备用眼型，紧绷时眯小
+      // 豆豆眼（基准）：黑点 + 一点高光，紧绷时眯小
       const r = rx * 0.055 * (1 - 0.35 * strain);
       ctx.beginPath();
       ctx.arc(x0, eyeY, r, 0, TAU);
@@ -473,7 +458,7 @@ function muyuAction(t, glance, glanceSide) {
 export default {
   id: 'cat',
   name: '小橘',
-  desc: '斗鸡眼小胖猫，常驻腮红',
+  desc: '豆豆眼小胖猫，常驻腮红',
   style: STYLE,
 
   // 预览页用：每个动作截一帧（stateAge 是动作摆幅最大的时刻，epoch 指定演哪个）
