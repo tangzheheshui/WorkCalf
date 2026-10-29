@@ -8,8 +8,9 @@
 
 import cow from './cow.js';
 import shiba from './shiba.js';
+import cat from './cat.js';
 
-export const CHARACTERS = [cow, shiba];
+export const CHARACTERS = [cow, shiba, cat];
 
 /** 按 id 取角色；未知 id（比如配置里留着已下架的模型）回落到第一个 */
 export function getCharacter(id) {
