@@ -1,8 +1,8 @@
-// 小橘：线条风橘猫，眯眼打工。
+// 小橘：线条风小猫，趴工位打工（形象按用户选的 05 号候选定稿）。
 //
-// 线条风（线条小狗/线条猫那类极简线稿）：细描边、浅色块、没有实心口鼻。
-// 基准表情 = 眯眼线（一条微弯的弧），表情全靠换线的画法：
-//   开心=弧往上弯，闭眼=弧往下弯，惊讶=换成豆豆眼，生气=加两道眉。
+// 白猫 + 粗藏青描边 + 斗鸡眼（白眼圈黑眼珠往鼻子挤）+ 常驻腮红 +
+// 浅棕小眉/三杠/胡须 + 宽扁胖脸。休息脸 = 斗鸡眼，表情换法：
+//   开心=弧往上弯，闭眼=弧往下弯，得意=眯眼线，惊讶=瞪圆眼，生气=加两道黑眉。
 // 与白牛牛/得意柴同一套角色接口（见 characters/cow.js 顶部说明）。
 //
 // 动作完全由渲染时间 t 算出，不存内部状态，任意一帧都能独立渲染
@@ -10,14 +10,15 @@
 
 import { TAU, blobShape, inkTube } from '../draw-kit.js';
 
-// 配色全部走 style，换色不用改绘制代码
+// 配色全部走 style，换色不用改绘制代码。
+// ink 换成藏青后整个场景（桌子/键盘/胳膊）一起变，和参考图的粗线一致。
 const STYLE = {
-  body: '#fdf3e3', // 奶白橘底（线条风的浅色块）
-  lineTint: '#fdf3e3',
-  stripe: '#c9a070', // 头顶三杠
-  nose: '#cf6b66',
-  whisker: '#b98a52',
-  ink: '#111111',
+  body: '#fefcf8', // 白猫
+  lineTint: '#fefcf8',
+  stripe: '#b8946a', // 头顶三杠、小眉毛（参考图的浅棕）
+  nose: '#f2a0b5', // 粉鼻头
+  whisker: '#b8946a',
+  ink: '#1a1a2e', // 藏青粗描边
 };
 
 /**
@@ -36,7 +37,7 @@ function catEar(ctx, C, side, rx, ry, u, tipDx = 0) {
   ctx.fillStyle = tint;
   ctx.fill();
   ctx.strokeStyle = C.ink;
-  ctx.lineWidth = 2.2 * u;
+  ctx.lineWidth = 3.4 * u;
   ctx.lineJoin = 'round';
   ctx.stroke();
   // 内耳一道小弧
@@ -44,7 +45,7 @@ function catEar(ctx, C, side, rx, ry, u, tipDx = 0) {
   ctx.moveTo(side * rx * 0.68, -ry * 0.76);
   ctx.quadraticCurveTo(side * rx * 0.74 + tipDx * 0.7, -ry * 0.86, side * rx * 0.78 + tipDx * 0.7, -ry * 0.72);
   ctx.strokeStyle = C.ink;
-  ctx.lineWidth = 1.8 * u;
+  ctx.lineWidth = 2.6 * u;
   ctx.lineCap = 'round';
   ctx.stroke();
 }
@@ -71,21 +72,23 @@ function bump(k, rise = 0.12, fall = 0.22) {
 }
 
 /**
- * 五官：眯眼线为基准，表情只换几根线的画法。
+ * 五官：斗鸡眼为基准（05 号候选），常驻腮红，表情换线的画法。
  * act 由 idleAction 给出；muyu/glance 时优先演敲木鱼那一套。
  */
 function catFace(ctx, C, rx, ry, u, o) {
   const { muyu, busy, glance, glanceSide, act, t, intensity } = o;
 
-  let eyes = 'slit'; // slit 眯眼线 | happy 笑眼 | closed 闭眼 | dot 豆豆眼(惊讶) | wink 眨眼放电
+  let eyes = 'cross'; // cross 斗鸡眼(基准) | wide 瞪圆眼(惊讶) | happy 笑眼 | closed 闭眼 | slit 眯眼线(得意) | wink
   let winkSide = 0; // wink 时哪只眼闭
   let peekSide = 0; // 偷瞄时哪只眼眯成短缝
   let mouth = 'w'; // w | smirk | open | tongue | pout | tight
   let mouthSide = 0;
   let openMouth = 0;
   let brow = 0; // 生气眉
-  let blush = 0;
+  let browLift = 0; // 挑眉（惊讶）
+  let blush = 0; // 动作腮红（叠在常驻腮红上）
   let sweat = 0;
+  let strain = 0; // 打字紧绷：豆豆眼眯小
 
   const blink = blinkAt(t || 0);
   const env = act ? act.env : 0;
@@ -110,6 +113,7 @@ function catFace(ctx, C, rx, ry, u, o) {
       openMouth = (v.open ?? 0) * env;
       blush = (v.blush ?? 0) * env;
       brow = (v.brow ?? 0) * env;
+      browLift = (v.browLift ?? 0) * env;
       if (eyes === 'wink') winkSide = side;
     } else {
       switch (act.id) {
@@ -118,29 +122,75 @@ function catFace(ctx, C, rx, ry, u, o) {
           mouth = 'smirk';
           mouthSide = act.side;
           break;
-        // lookAround / earFlick / curious：只有头部动，脸保持眯眼线
+        // lookAround / earFlick / curious：只有头部动，脸保持豆豆眼
       }
     }
   } else if (busy) {
-    // 打字：嘴抿成一条线，敲得够猛时额角冒汗
+    // 打字：嘴抿成一条线、眼睛绷小，敲得够猛时额角冒汗
     const it = Math.max(0, Math.min(1, intensity || 0));
     mouth = 'tight';
+    strain = 0.55 + 0.45 * it;
     sweat = Math.max(0, Math.min(1, (it - 0.25) / 0.75));
   } else if (blink > 0.48) {
     eyes = 'closed';
   }
 
-  // 眼睛：眯眼线 / 笑眼 / 闭眼 / 豆豆眼 / 偷瞄短缝
+  // 眼睛：斗鸡眼 / 瞪圆 / 笑眼 / 闭眼 / 眯眼线 / 偷瞄短缝
   const eyeX = rx * 0.406;
   const eyeY = -ry * 0.10;
   const drawEye = (sx) => {
     const x0 = sx * eyeX;
     let mode = eyes;
-    if (mode === 'wink') mode = sx === winkSide ? 'closed' : 'slit';
+    if (mode === 'wink') mode = sx === winkSide ? 'closed' : 'cross';
     if (sx === peekSide) mode = 'peek';
+
+    if (mode === 'cross') {
+      // 斗鸡眼（基准）：白眼圈 + 黑眼珠往鼻子方向挤
+      ctx.beginPath();
+      ctx.arc(x0, eyeY, rx * 0.082, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = C.ink;
+      ctx.lineWidth = 2.6 * u;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x0 - sx * rx * 0.034, eyeY + ry * 0.014, rx * 0.040, 0, TAU);
+      ctx.fillStyle = C.ink;
+      ctx.fill();
+      return;
+    }
+    if (mode === 'wide') {
+      // 瞪圆眼：白底 + 描边 + 中间瞳孔（惊讶）
+      ctx.beginPath();
+      ctx.arc(x0, eyeY, rx * 0.085, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = C.ink;
+      ctx.lineWidth = 2.6 * u;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x0, eyeY + ry * 0.01, rx * 0.042, 0, TAU);
+      ctx.fillStyle = C.ink;
+      ctx.fill();
+      return;
+    }
+    if (mode === 'dot') {
+      // 豆豆眼：备用眼型，紧绷时眯小
+      const r = rx * 0.055 * (1 - 0.35 * strain);
+      ctx.beginPath();
+      ctx.arc(x0, eyeY, r, 0, TAU);
+      ctx.fillStyle = C.ink;
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      ctx.arc(x0 - r * 0.33, eyeY - r * 0.33, r * 0.36, 0, TAU);
+      ctx.fill();
+      return;
+    }
+
     ctx.strokeStyle = C.ink;
     ctx.lineCap = 'round';
-    ctx.lineWidth = 2.2 * u;
+    ctx.lineWidth = 2.6 * u;
     ctx.beginPath();
     if (mode === 'happy') {
       // 笑眼：弧往上弯
@@ -154,19 +204,8 @@ function catFace(ctx, C, rx, ry, u, o) {
       // 偷瞄：半截短缝
       ctx.moveTo(x0 - rx * 0.09, eyeY + ry * 0.01);
       ctx.quadraticCurveTo(x0, eyeY + ry * 0.07, x0 + rx * 0.09, eyeY + ry * 0.01);
-    } else if (mode === 'dot') {
-      // 惊讶：换成豆豆眼
-      ctx.beginPath();
-      ctx.arc(x0, eyeY, rx * 0.055, 0, TAU);
-      ctx.fillStyle = C.ink;
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.beginPath();
-      ctx.arc(x0 - rx * 0.018, eyeY - rx * 0.018, rx * 0.02, 0, TAU);
-      ctx.fill();
-      return;
     } else {
-      // 眯眼线（基准）：一条微微下弯的弧
+      // 眯眼线：一条微微下弯的弧（得意）
       ctx.moveTo(x0 - rx * 0.13, eyeY);
       ctx.quadraticCurveTo(x0, eyeY + ry * 0.06, x0 + rx * 0.13, eyeY);
     }
@@ -175,20 +214,48 @@ function catFace(ctx, C, rx, ry, u, o) {
   drawEye(-1);
   drawEye(1);
 
-  // 生气眉：内低外高
+  // 小眉毛：浅棕两撇，平时安静地待着，惊讶时整体上抬
+  ctx.strokeStyle = C.stripe;
+  ctx.lineWidth = 2.2 * u;
+  ctx.lineCap = 'round';
+  const browY = -ry * (0.24 - 0.06 * browLift);
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(sx * rx * 0.30, browY);
+    ctx.quadraticCurveTo(sx * rx * 0.40, browY - ry * 0.02, sx * rx * 0.50, browY - ry * 0.005);
+    ctx.stroke();
+  }
+
+  // 生气眉：黑色、内低外高，压在小眉毛上
   if (brow > 0.02) {
     ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 2.0 * u;
+    ctx.lineWidth = 2.4 * u;
     ctx.lineCap = 'round';
     for (const sx of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(sx * rx * 0.18, -ry * 0.22);
-      ctx.lineTo(sx * rx * 0.38, -ry * (0.22 + 0.08 * brow));
+      ctx.moveTo(sx * rx * 0.18, -ry * 0.20);
+      ctx.lineTo(sx * rx * 0.38, -ry * (0.20 + 0.09 * brow));
       ctx.stroke();
     }
   }
 
-  // 鼻子（实心小三角）+ 人中
+  // 常驻腮红：软粉椭圆，一直在；动作卖萌时再叠一层更红的
+  for (const sx of [-1, 1]) {
+    ctx.fillStyle = 'rgba(249, 198, 207, 0.75)';
+    ctx.beginPath();
+    ctx.ellipse(sx * rx * 0.58, ry * 0.04, rx * 0.10, ry * 0.055, 0, 0, TAU);
+    ctx.fill();
+  }
+  if (blush > 0.01) {
+    ctx.fillStyle = `rgba(238, 120, 110, ${(0.30 * blush).toFixed(3)})`;
+    for (const sx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(sx * rx * 0.58, ry * 0.04, rx * 0.10, ry * 0.055, 0, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  // 鼻子（粉色小三角）+ 人中
   ctx.beginPath();
   ctx.moveTo(-rx * 0.08, ry * 0.34);
   ctx.lineTo(rx * 0.08, ry * 0.34);
@@ -201,12 +268,12 @@ function catFace(ctx, C, rx, ry, u, o) {
   ctx.beginPath();
   ctx.moveTo(0, ry * 0.39);
   ctx.lineTo(0, ry * 0.45);
-  ctx.lineWidth = 1.6 * u;
+  ctx.lineWidth = 2.0 * u;
   ctx.stroke();
 
   // 嘴：ω / 坏笑 / 张嘴 / 吐舌 / 嘟嘴 / 抿紧
   const my = ry * 0.50;
-  ctx.lineWidth = 1.8 * u;
+  ctx.lineWidth = 2.4 * u;
   if (mouth === 'open') {
     const orx = rx * (0.045 + 0.05 * openMouth);
     const ory = ry * (0.018 + 0.03 * openMouth);
@@ -275,25 +342,15 @@ function catFace(ctx, C, rx, ry, u, o) {
     ctx.stroke();
   }
 
-  // 胡须：三对，朝外散开
+  // 胡须：三对，朝外散开（棕色）
   ctx.strokeStyle = C.whisker;
-  ctx.lineWidth = 1.6 * u;
+  ctx.lineWidth = 2.0 * u;
   for (const sx of [-1, 1]) {
     for (const [dy0, dy1] of [[0.26, 0.20], [0.34, 0.33], [0.42, 0.46]]) {
       ctx.beginPath();
       ctx.moveTo(sx * rx * 0.50, ry * dy0);
       ctx.quadraticCurveTo(sx * rx * 0.70, ry * (dy0 + dy1) / 2, sx * rx * 0.88, ry * dy1);
       ctx.stroke();
-    }
-  }
-
-  // 腮红：只在卖萌/使坏的时候点一下
-  if (blush > 0.01) {
-    ctx.fillStyle = `rgba(238, 120, 110, ${(0.32 * blush).toFixed(3)})`;
-    for (const sx of [-1, 1]) {
-      ctx.beginPath();
-      ctx.arc(sx * rx * 0.55, ry * 0.02, rx * 0.075, 0, TAU);
-      ctx.fill();
     }
   }
 
@@ -326,13 +383,13 @@ const ACTIONS = [
   // rot/dx/dy 是这一段的头部偏移（弧度 / 画面宽高比例）。
   { id: 'happy', label: '开心', dur: 1.6, face: { eyes: 'happy', blush: 0.6 } },
   { id: 'laugh', label: '大笑', dur: 1.8, face: { eyes: 'happy', mouth: 'open', open: 1, blush: 0.7 } },
-  { id: 'smug', label: '得意', dur: 1.8, side: 1, face: { mouth: 'smirk', ms: 1 } },
+  { id: 'smug', label: '得意', dur: 1.8, side: 1, face: { eyes: 'slit', mouth: 'smirk', ms: 1 } },
   { id: 'yawn', label: '困倦', dur: 2.5, face: { eyes: 'closed', mouth: 'open', open: 0.8 } },
   { id: 'peek', label: '偷瞄', dur: 2.0, side: 1 },
   { id: 'wink', label: '眨眼放电', dur: 1.4, side: -1, face: { eyes: 'wink', mouth: 'smirk', ms: -1, blush: 0.5 } },
   { id: 'tongue', label: '吐舌卖萌', dur: 1.3, side: 1, face: { mouth: 'tongue', blush: 0.5 } },
   { id: 'pout', label: '嘟嘴生气', dur: 1.6, face: { brow: 1, mouth: 'pout', blush: 0.4 } },
-  { id: 'surprise', label: '惊讶', dur: 1.5, face: { eyes: 'dot', mouth: 'open', open: 0.5 } },
+  { id: 'surprise', label: '惊讶', dur: 1.5, face: { eyes: 'wide', browLift: 1, mouth: 'open', open: 0.5 } },
   { id: 'curious', label: '好奇歪头', dur: 1.8, side: -1, rot: -0.120, dx: -0.008, dy: 0.004 },
   { id: 'lookAround', label: '东张西望', dur: 2.6, previewAt: 0.25 },
   { id: 'earFlick', label: '抖耳朵', dur: 0.9, previewAt: 0.125 },
@@ -416,7 +473,7 @@ function muyuAction(t, glance, glanceSide) {
 export default {
   id: 'cat',
   name: '小橘',
-  desc: '线条风橘猫，眯眼打工',
+  desc: '斗鸡眼小胖猫，常驻腮红',
   style: STYLE,
 
   // 预览页用：每个动作截一帧（stateAge 是动作摆幅最大的时刻，epoch 指定演哪个）
@@ -451,7 +508,7 @@ export default {
         );
       },
       w * 0.045,
-      2.0 * u,
+      2.8 * u,
       STYLE.ink,
       STYLE.body,
     );
@@ -477,17 +534,18 @@ export default {
     catEar(ctx, C, -1, rx, ry, u, -earDx);
     catEar(ctx, C, 1, rx, ry, u, earDx);
 
-    const head = blobShape(0, 0, rx * 1.01, ry, 0, seed);
+    // 05 号候选：脸压扁 13%，宽扁胖脸
+    const head = blobShape(0, 0, rx * 1.01 * 1.13, ry, 0, seed);
     ctx.fillStyle = C.lineTint || C.body;
     ctx.fill(head);
     ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 2.2 * u;
+    ctx.lineWidth = 3.4 * u;
     ctx.lineJoin = 'round';
     ctx.stroke(head);
 
     // 虎斑纹：只留头顶三杠
     ctx.strokeStyle = C.stripe;
-    ctx.lineWidth = rx * 0.03;
+    ctx.lineWidth = rx * 0.045;
     ctx.lineCap = 'round';
     for (const k of [-1, 0, 1]) {
       ctx.beginPath();
@@ -519,16 +577,16 @@ export default {
     catEar(ctx, C, -1, rx, ry, lw);
     catEar(ctx, C, 1, rx, ry, lw);
 
-    const head = blobShape(0, 0, rx * 1.01, ry, 0, 2.1);
+    const head = blobShape(0, 0, rx * 1.01 * 1.13, ry, 0, 2.1);
     ctx.fillStyle = C.lineTint || C.body;
     ctx.fill(head);
     ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 2.2 * lw;
+    ctx.lineWidth = 3.4 * lw;
     ctx.lineJoin = 'round';
     ctx.stroke(head);
 
     ctx.strokeStyle = C.stripe;
-    ctx.lineWidth = rx * 0.03;
+    ctx.lineWidth = rx * 0.045;
     ctx.lineCap = 'round';
     for (const k of [-1, 0, 1]) {
       ctx.beginPath();
